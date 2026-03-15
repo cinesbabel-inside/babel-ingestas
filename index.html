@@ -3,17 +3,15 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ingestas — Cines Babel · v1.10.7</title>
+  <title>Ingestas — Cines Babel · v1.10.5</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎬</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
     /* ── PASSWORD SCREEN ── */
     #lockScreen {
-      position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 9999;
+      position: fixed; inset: 0; z-index: 9999;
       background: #141c2e;
-      display: -webkit-flex; display: flex;
-      -webkit-align-items: center; align-items: center;
-      -webkit-justify-content: center; justify-content: center;
+      display: flex; align-items: center; justify-content: center;
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
     #lockScreen.hidden { display: none; }
@@ -548,12 +546,12 @@
 
     /* ── MODAL ── */
     .modal-overlay {
-      display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0;
+      display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.45); z-index: 200;
-      -webkit-align-items: center; align-items: center;
-      -webkit-justify-content: center; justify-content: center;
+      align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
     }
-    .modal-overlay.open { display: -webkit-flex; display: flex; }
+    .modal-overlay.open { display: flex; }
     .modal {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 18px; padding: 28px;
@@ -618,7 +616,7 @@
       onkeydown="if(event.key==='Enter')checkPassword()"/>
     <button class="lock-btn" onclick="checkPassword()">Entrar</button>
     <div class="lock-error" id="lockError"></div>
-    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.10.7</div>
+    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.10.5</div>
   </div>
 </div>
 
@@ -803,7 +801,7 @@
       <!-- CRÉDITOS -->
       <div class="help-credits">
         <strong>Lista de Ingestas — Cines Babel</strong><br>
-        Versión actual: <strong>v1.10.7</strong><br>
+        Versión actual: <strong>v1.10.5</strong><br>
         Diseño y desarrollo por <strong>Pablo Goitia</strong>
       </div>
 
@@ -835,76 +833,40 @@
 <div class="toast" id="toast"></div>
 <div class="popover" id="popover"></div>
 
-<footer>v1.10.7 · Diseño por Pablo Goitia</footer>
+<footer>v1.10.5 · Diseño por Pablo Goitia</footer>
 
 <script>
 // ─── PASSWORD ─────────────────────────────────
-// ─── PASSWORD ─────────────────────────────────
-var PASS_HASH = "160707631d6ce3c72d9d7047a4174ee934c7f0a1a0c95e418740213606fda558";
+const PASS_HASH = "160707631d6ce3c72d9d7047a4174ee934c7f0a1a0c95e418740213606fda558";
 
-function sha256(str) {
-  function rr(v,a){ return (v>>>a)|(v<<(32-a)); }
-  var mP=Math.pow,mW=mP(2,32),i,j,res='',words=[],bits=str.length*8;
-  var hash=[],k=[],pc=k.length,ic={};
-  for(var c=2;pc<64;c++){
-    if(!ic[c]){
-      for(i=0;i<313;i+=c) ic[i]=c;
-      hash[pc]=(mP(c,.5)*mW)|0;
-      k[pc++]=(mP(c,1/3)*mW)|0;
-    }
-  }
-  str+='';
-  while(str.length%64-56) str+=' ';
-  for(i=0;i<str.length;i++){
-    j=str.charCodeAt(i);
-    words[i>>2]|=j<<((3-i)%4)*8;
-  }
-  words[words.length]=((bits/mW)|0);
-  words[words.length]=bits;
-  for(j=0;j<words.length;){
-    var w=words.slice(j,j+=16),oh=hash.slice(0);
-    for(i=0;i<64;i++){
-      var w15=w[i-15],w2=w[i-2],a=hash[0],e=hash[4];
-      var t1=hash[7]+(rr(e,6)^rr(e,11)^rr(e,25))+((e&hash[5])^(~e&hash[6]))+k[i]
-        +(w[i]=(i<16)?w[i]:(w[i-16]+(rr(w15,7)^rr(w15,18)^(w15>>>3))+w[i-7]+(rr(w2,17)^rr(w2,19)^(w2>>>10)))|0);
-      var t2=(rr(a,2)^rr(a,13)^rr(a,22))+((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
-      hash=[(t1+t2)|0].concat(hash);
-      hash[4]=(hash[4]+t1)|0;
-      hash.length=8;
-    }
-    hash=hash.map(function(v,x){ return (v+oh[x])|0; });
-  }
-  hash.forEach(function(val){
-    for(i=7;i>=0;i--) res+=((val>>>(i*4))&0xF).toString(16);
-  });
-  return res;
+async function hashString(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-function checkPassword() {
-  var input = document.getElementById("lockInput");
-  var error = document.getElementById("lockError");
-  var hash  = sha256(input.value);
+async function checkPassword() {
+  const input = document.getElementById("lockInput");
+  const error = document.getElementById("lockError");
+  const hash  = await hashString(input.value);
   if (hash === PASS_HASH) {
-    try { sessionStorage.setItem("auth","1"); } catch(e) {}
+    sessionStorage.setItem("auth", "1");
     document.getElementById("lockScreen").classList.add("hidden");
     input.value = "";
     error.textContent = "";
   } else {
     input.classList.add("error");
     error.textContent = "Contraseña incorrecta.";
-    setTimeout(function(){ input.classList.remove("error"); }, 400);
+    setTimeout(() => input.classList.remove("error"), 400);
     input.value = "";
     input.focus();
   }
 }
 
 function initAuth() {
-  var auth = false;
-  try { auth = sessionStorage.getItem("auth") === "1"; } catch(e) {}
-  if (auth) {
+  if (sessionStorage.getItem("auth") === "1") {
     document.getElementById("lockScreen").classList.add("hidden");
   } else {
-    setTimeout(function(){ document.getElementById("lockInput").focus(); }, 100);
+    setTimeout(() => document.getElementById("lockInput").focus(), 100);
   }
 }
 
