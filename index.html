@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ingestas — Cines Babel · v1.8</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎬</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #f6f8fc;
+      --surface:    #ffffff;
+      --surface2:   #f0f4fa;
+      --border:     #e4eaf4;
+      --border2:    #edf1f8;
+      --text:       #141c2e;
+      --text2:      #6b7a99;
+      --text3:      #b0bcd4;
+      --accent:     #3f7ff0;
+      --accent-dim: rgba(63,127,240,0.07);
+      --accent-soft:#e8f0fe;
+      --focus-bg:   rgba(63,127,240,0.06);
+      --header-bg:  #141c2e;
+      --header-text:#f6f8fc;
+      --s-blank:    #e4eaf4;
+      --s-fisico:   #d0e4ff;
+      --s-remoto:   #e0d0ff;
+      --s-otro:     #ffecd0;
+      --p-off:      #ff8a80;
+      --p-copy:     #ffd740;
+      --p-ok:       #69f0ae;
+      --p-err:      #82b1ff;
+    }
+
+    body.dark {
+      --bg:         #0f1218;
+      --surface:    #181d26;
+      --surface2:   #0f1218;
+      --border:     #252d3d;
+      --border2:    #1e2534;
+      --text:       #e8edf8;
+      --text2:      #6b7a99;
+      --text3:      #353f54;
+      --accent:     #5b96f7;
+      --accent-dim: rgba(91,150,247,0.1);
+      --accent-soft:rgba(91,150,247,0.12);
+      --focus-bg:   rgba(91,150,247,0.08);
+      --header-bg:  #080a0f;
+      --header-text:#e8edf8;
+      --s-blank:    #252d3d;
+      --s-fisico:   #152240;
+      --s-remoto:   #201540;
+      --s-otro:     #402810;
+      --p-off:      #c62828;
+      --p-copy:     #f9a825;
+      --p-ok:       #2e7d32;
+      --p-err:      #1565c0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      min-height: 100vh;
+      user-select: none;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--header-bg);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse at 80% 50%, rgba(63,127,240,0.15) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #3f7ff0, #6fa8ff);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(63,127,240,0.45);
+    }
+    .header-titles { display: flex; flex-direction: column; gap: 1px; }
+    .header-eyebrow {
+      font-size: 0.56rem; font-weight: 700;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+    }
+    h1 {
+      font-size: 0.95rem; font-weight: 800;
+      color: var(--header-text); letter-spacing: -0.01em; line-height: 1.2;
+    }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .counter {
+      font-size: 0.62rem; font-weight: 700;
+      color: var(--accent);
+      background: rgba(63,127,240,0.15);
+      padding: 3px 10px; border-radius: 20px;
+      border: 1px solid rgba(63,127,240,0.25);
+    }
+    .sync-status {
+      font-size: 0.6rem; font-weight: 500;
+      color: rgba(255,255,255,0.25);
+      display: flex; align-items: center; gap: 4px;
+    }
+    .sync-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.15); flex-shrink: 0; transition: background 0.3s;
+    }
+    .sync-dot.syncing { background: #fbbf24; animation: pulse 1s infinite; }
+    .sync-dot.pending { background: #fb923c; animation: pulse 0.8s infinite; }
+    .sync-dot.synced  { background: #34d399; }
+    .sync-dot.error   { background: #f87171; }
+    .sync-dot.local   { background: rgba(255,255,255,0.15); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .btn-save {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.62rem; font-weight: 700;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.55);
+      padding: 5px 12px; border-radius: 8px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-save:hover { background: rgba(255,255,255,0.14); color: rgba(255,255,255,0.95); }
+    .btn-save.has-changes {
+      background: rgba(63,127,240,0.2);
+      border-color: rgba(63,127,240,0.4);
+      color: #7fb3ff;
+    }
+    .btn-save.has-changes:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(63,127,240,0.4);
+    }
+
+    .btn-config {
+      font-size: 0.6rem; font-weight: 600;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.4);
+      padding: 5px 11px; border-radius: 8px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-config:hover { background: rgba(255,255,255,0.13); color: rgba(255,255,255,0.9); }
+
+    .theme-toggle {
+      width: 32px; height: 18px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 20px; cursor: pointer;
+      position: relative; transition: background 0.2s; flex-shrink: 0;
+    }
+    .theme-toggle::after {
+      content: ''; position: absolute;
+      width: 12px; height: 12px; border-radius: 50%;
+      background: rgba(255,255,255,0.4);
+      top: 2px; left: 2px;
+      transition: transform 0.2s, background 0.2s;
+    }
+    body.dark .theme-toggle { background: rgba(91,150,247,0.25); border-color: rgba(91,150,247,0.35); }
+    body.dark .theme-toggle::after { transform: translateX(14px); background: var(--accent); }
+
+    /* ── MAIN ── */
+    main { padding: 16px 24px; }
+
+    /* ── LEGENDS ── */
+    .legends {
+      display: flex; gap: 16px; margin-bottom: 12px;
+      flex-wrap: wrap; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 9px 14px;
+    }
+    .legend-group { display: flex; align-items: center; gap: 7px; }
+    .legend-label { font-size: 0.57rem; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; }
+    .legend-item  { display: flex; align-items: center; gap: 4px; font-size: 0.63rem; font-weight: 500; color: var(--text2); }
+    .legend-chip  { width: 14px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .legend-dot   { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .legend-sep   { width: 1px; height: 14px; background: var(--border); margin: 0 4px; }
+
+    /* ── SEARCH ── */
+    .search-wrap { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .search-inner { position: relative; flex: 1; max-width: 340px; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 0.8rem; pointer-events: none; }
+    .search-input {
+      width: 100%; padding: 8px 10px 8px 30px;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.76rem; font-weight: 500;
+      color: var(--text); background: var(--surface); outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(63,127,240,0.1); }
+    .search-input::placeholder { color: var(--text3); font-weight: 400; }
+    .search-count { font-size: 0.63rem; font-weight: 600; color: var(--text2); }
+    .btn-clear {
+      font-size: 0.66rem; font-weight: 600;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text2); padding: 5px 10px; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-clear:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── TABLE ── */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    table { border-collapse: collapse; width: 100%; }
+    thead tr { background: var(--surface2); }
+    thead th {
+      padding: 11px 12px; text-align: left;
+      font-size: 0.58rem; font-weight: 700; color: var(--text3);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      white-space: nowrap; user-select: none;
+      border-bottom: 1px solid var(--border);
+    }
+    thead th.center { text-align: center; }
+    tbody tr { border-bottom: 1px solid var(--border2); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--accent-dim); }
+    tbody tr.empty-row { background: transparent; }
+    tbody tr.empty-row:hover { background: var(--accent-dim); }
+    tbody td { padding: 7px 10px; vertical-align: middle; }
+    tbody td.center { text-align: center; }
+    tbody td.sala { text-align: center; padding: 7px 0; width: 48px; }
+
+    /* ── DATE ── */
+    .date-cell {
+      font-size: 0.57rem; color: var(--text3);
+      white-space: nowrap; text-align: center; line-height: 1.5; min-width: 38px;
+    }
+    .date-cell .date-day  { display: block; font-weight: 700; color: var(--text2); }
+    .date-cell .date-time { display: block; }
+
+    /* ── FORMAT BUTTON ── */
+    .fmt-btn {
+      width: 56px; height: 22px; border-radius: 6px; border: none; cursor: pointer;
+      font-size: 0.54rem; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto; transition: transform 0.12s, box-shadow 0.12s; user-select: none;
+      color: var(--text2); background: var(--s-blank);
+    }
+    .fmt-btn:hover  { transform: scale(1.06); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .fmt-btn:active { transform: scale(0.94); }
+    .fmt-btn.fisico { background: var(--s-fisico); color: #1a5080; }
+    .fmt-btn.remoto { background: var(--s-remoto); color: #3a1a80; }
+    .fmt-btn.otro   { background: var(--s-otro);   color: #804a10; }
+    body.dark .fmt-btn.fisico { color: #82b1ff; }
+    body.dark .fmt-btn.remoto { color: #ce93d8; }
+    body.dark .fmt-btn.otro   { color: #ffcc80; }
+
+    .otro-input {
+      background: transparent; border: none;
+      border-bottom: 1px dashed var(--border);
+      color: var(--text2); font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.62rem; width: 56px; padding: 2px;
+      outline: none; margin-top: 3px; display: none;
+    }
+    .otro-input.visible { display: block; }
+    .otro-input::placeholder { color: var(--text3); }
+
+    /* ── TITLE INPUT ── */
+    .cell-input {
+      background: transparent; border: none; color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.82rem; font-weight: 500;
+      width: 100%; padding: 3px 6px; outline: none; border-radius: 6px;
+      transition: background 0.12s; user-select: text;
+    }
+    .cell-input:focus { background: var(--focus-bg); }
+    .cell-input::placeholder { color: var(--text3); font-weight: 400; }
+    .empty-row .cell-input::placeholder { font-style: italic; }
+
+    /* ── ARCHIVO INPUT ── */
+    .archivo-input {
+      background: transparent; border: none; color: var(--text3);
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.68rem;
+      width: 100%; padding: 3px 6px; outline: none; border-radius: 6px;
+      transition: background 0.12s, color 0.15s, font-size 0.15s; user-select: text;
+    }
+    .archivo-input:focus, .archivo-input.has-text { color: var(--text2); font-size: 0.78rem; font-weight: 500; }
+    .archivo-input:focus { background: var(--focus-bg); }
+    .archivo-input::placeholder { color: var(--text3); font-size: 0.68rem; }
+
+    /* ── SALA CELL ── */
+    .sala-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+
+    /* ── SALA BUTTON ── */
+    .proj-btn {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: none; cursor: pointer; display: block;
+      transition: transform 0.12s, box-shadow 0.12s; flex-shrink: 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+    .proj-btn:hover { transform: scale(1.15); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    .proj-btn:active { transform: scale(0.88); }
+    .proj-btn.pressing { animation: ring-grow 0.6s linear forwards; }
+    @keyframes ring-grow {
+      0%   { box-shadow: 0 0 0 0px rgba(63,127,240,0.6); }
+      100% { box-shadow: 0 0 0 8px rgba(63,127,240,0); }
+    }
+    .p0 { background: var(--p-off); }
+    .p1 { background: var(--p-copy); }
+    .p2 { background: var(--p-ok); }
+    .p3 { background: var(--p-err); }
+
+    /* ── ERROR NOTE ── */
+    .error-input {
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.6rem; font-weight: 500;
+      color: #82b1ff; background: rgba(13,71,161,0.12);
+      border: 1px solid rgba(130,177,255,0.3); border-radius: 5px;
+      padding: 2px 5px; outline: none; width: 56px;
+      text-align: center; user-select: text;
+    }
+    .error-input::placeholder { color: rgba(130,177,255,0.35); }
+
+    /* ── ROW NUM ── */
+    .row-num { font-size: 0.57rem; font-weight: 600; color: var(--text3); text-align: right; padding-right: 4px; user-select: none; min-width: 18px; }
+
+    /* ── REMOVE ── */
+    .btn-remove {
+      background: transparent; border: none; color: var(--text3);
+      font-size: 0.78rem; cursor: pointer; padding: 4px 6px;
+      border-radius: 6px; transition: color 0.15s, background 0.15s; line-height: 1;
+    }
+    .btn-remove:hover { color: #ef4444; background: rgba(239,68,68,0.08); }
+
+    /* ── ADD ROW ── */
+    .btn-add-row {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.72rem; font-weight: 700;
+      color: var(--accent); background: var(--accent-soft);
+      border: 1.5px solid rgba(63,127,240,0.2); border-radius: 10px;
+      padding: 8px 16px; cursor: pointer; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-add-row:hover {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 4px 14px rgba(63,127,240,0.35);
+    }
+
+    /* ── HELP MODAL ── */
+    .help-section { margin-bottom: 24px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section-title {
+      font-size: 0.62rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--accent);
+      margin-bottom: 12px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .help-section p {
+      font-size: 0.78rem; color: var(--text2); line-height: 1.7;
+      margin-bottom: 10px;
+    }
+    .help-section p:last-child { margin-bottom: 0; }
+    .help-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 9px; font-size: 0.76rem; color: var(--text2); line-height: 1.5;
+    }
+    .help-row:last-child { margin-bottom: 0; }
+    .help-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.55rem; font-weight: 800; letter-spacing: 0.04em;
+      border-radius: 5px; padding: 2px 7px; flex-shrink: 0;
+      margin-top: 1px; text-transform: uppercase;
+    }
+    .help-dot {
+      width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 3px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .help-kbd {
+      display: inline-flex; align-items: center;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 5px; padding: 1px 7px;
+      font-size: 0.68rem; font-weight: 700; color: var(--text);
+      font-family: monospace; flex-shrink: 0; margin-top: 1px;
+    }
+    .help-divider {
+      border: none; border-top: 1px solid var(--border); margin: 20px 0;
+    }
+    .help-credits {
+      text-align: center; font-size: 0.68rem; color: var(--text3);
+      padding-top: 4px; line-height: 1.8;
+    }
+    .help-credits strong { color: var(--text2); }
+    .modal-scroll { max-height: 68vh; overflow-y: auto; padding-right: 4px; }
+    .modal-scroll::-webkit-scrollbar { width: 4px; }
+    .modal-scroll::-webkit-scrollbar-track { background: transparent; }
+    .modal-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .btn-help {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.62rem; font-weight: 700;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.5);
+      padding: 5px 11px; border-radius: 8px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-help:hover { background: rgba(255,255,255,0.13); color: rgba(255,255,255,0.95); }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 200;
+      align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 28px;
+      width: 480px; max-width: 95vw;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.15);
+    }
+    .modal h2 { font-size: 1rem; font-weight: 800; margin-bottom: 8px; color: var(--text); }
+    .modal p  { font-size: 0.75rem; color: var(--text2); margin-bottom: 20px; line-height: 1.6; }
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; font-size: 0.63rem; font-weight: 700; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .form-row input { width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.8rem; color: var(--text); background: var(--surface2); outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+    .form-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(63,127,240,0.1); }
+    .modal-hint { background: var(--accent-soft); border: 1px solid rgba(63,127,240,0.2); border-radius: 10px; padding: 10px 14px; font-size: 0.72rem; color: var(--accent); margin-bottom: 20px; line-height: 1.7; }
+    .modal-hint a { color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-primary { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 9px 20px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s, box-shadow 0.15s; box-shadow: 0 4px 14px rgba(63,127,240,0.35); }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-secondary { background: transparent; color: var(--text2); border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 20px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.78rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-secondary:hover { border-color: var(--text2); color: var(--text); }
+
+    /* ── POPOVER ── */
+    .popover {
+      position: fixed; background: var(--header-bg); color: var(--header-text);
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.72rem; font-weight: 500;
+      padding: 6px 12px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      pointer-events: none; z-index: 999; max-width: 360px;
+      word-break: break-all; opacity: 0; transform: translateY(4px);
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .popover.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--header-bg); color: var(--header-text);
+      font-size: 0.74rem; font-weight: 500;
+      padding: 10px 16px; border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      opacity: 0; transform: translateY(8px);
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none; z-index: 300;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    footer {
+      text-align: right; padding: 12px 24px 20px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.6rem; font-weight: 500;
+      color: var(--text3); user-select: none; letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-icon">🎬</div>
+    <div class="header-titles">
+      <span class="header-eyebrow">Cines Babel</span>
+      <h1>Lista de Ingestas</h1>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="counter" id="counter">0 películas</span>
+    <div class="sync-status">
+      <div class="sync-dot local" id="syncDot"></div>
+      <span id="syncText">Sin conectar</span>
+    </div>
+    <button class="btn-save" id="btnSave" onclick="saveNow()" title="Guardar ahora (Ctrl+S)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Guardar
+    </button>
+    <button class="btn-config" onclick="openConfig()">⚙ Google Sheets</button>
+    <button class="btn-help" onclick="openHelp()">? Ayuda</button>
+    <div class="theme-toggle" onclick="toggleTheme()" title="Modo claro/oscuro"></div>
+  </div>
+</div>
+
+<main>
+  <div class="legends">
+    <div class="legend-group">
+      <span class="legend-label">Formato</span>
+      <div class="legend-item"><div class="legend-chip" style="background:var(--s-blank);border:1px solid rgba(0,0,0,0.08)"></div>—</div>
+      <div class="legend-item"><div class="legend-chip" style="background:var(--s-fisico)"></div>Físico</div>
+      <div class="legend-item"><div class="legend-chip" style="background:var(--s-remoto)"></div>Remoto</div>
+      <div class="legend-item"><div class="legend-chip" style="background:var(--s-otro)"></div>Otro</div>
+    </div>
+    <div class="legend-sep"></div>
+    <div class="legend-group">
+      <span class="legend-label">Estado</span>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--p-off)"></div>No copiado</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--p-copy)"></div>Copiando</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--p-ok)"></div>Listo</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--p-err)"></div>Error</div>
+    </div>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-inner">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="searchInput" type="text"
+        placeholder="Buscar por título o archivo…"
+        oninput="applySearch(this.value)"/>
+    </div>
+    <span class="search-count" id="searchCount" style="display:none;"></span>
+    <button class="btn-clear" id="clearSearch" onclick="clearSearch()" style="display:none;">✕ Limpiar</button>
+    <button class="btn-add-row" onclick="manualAddRow()">+ Añadir fila</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:38px" class="center"></th>
+          <th style="width:18px"></th>
+          <th class="center" style="width:66px">Formato</th>
+          <th>Película</th>
+          <th style="width:160px">Archivo</th>
+          <th class="center" style="width:48px;padding:11px 0;">S1</th>
+          <th class="center" style="width:48px;padding:11px 0;">S2</th>
+          <th class="center" style="width:48px;padding:11px 0;">S3</th>
+          <th class="center" style="width:48px;padding:11px 0;">S4</th>
+          <th class="center" style="width:48px;padding:11px 0;">S5</th>
+          <th style="width:28px"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<div class="modal-overlay" id="helpOverlay">
+  <div class="modal" style="width:560px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <h2 style="margin:0;">Instrucciones</h2>
+      <button class="btn-secondary" onclick="closeHelp()" style="padding:5px 12px;font-size:0.72rem;">✕</button>
+    </div>
+    <div class="modal-scroll">
+
+      <!-- PARTE 1: QUÉ ES Y CÓMO FUNCIONA -->
+      <div class="help-section">
+        <div class="help-section-title">¿Para qué sirve esta lista?</div>
+        <p>Esta herramienta permite llevar el control de las ingestas de películas en Cines Babel. Cada fila representa una película recibida, e indica en qué salas ha sido copiada y su estado actual.</p>
+        <p>Los datos se sincronizan con Google Sheets, lo que permite que todos los ordenadores del cine vean la misma información en tiempo real.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Columnas y botones</div>
+
+        <div class="help-row">
+          <span class="help-badge" style="background:var(--s-blank);color:var(--text2);">—</span>
+          <span><strong style="color:var(--text);">Formato</strong> — Indica cómo se ha recibido la película. Haz clic para cambiar entre: sin especificar, <span style="color:#1a5080;font-weight:600;">Físico</span>, <span style="color:#3a1a80;font-weight:600;">Remoto</span> u <span style="color:#804a10;font-weight:600;">Otro</span>. Si eliges "Otro" aparece un campo para especificar.</span>
+        </div>
+
+        <div class="help-row" style="margin-top:10px;">
+          <span style="font-size:0.82rem;margin-top:1px;">🎬</span>
+          <span><strong style="color:var(--text);">Película</strong> — Escribe el título y pulsa Enter o haz clic fuera para confirmar. La fila se activa automáticamente al confirmar.</span>
+        </div>
+
+        <div class="help-row" style="margin-top:10px;">
+          <span style="font-size:0.82rem;margin-top:1px;">📄</span>
+          <span><strong style="color:var(--text);">Archivo</strong> — Nombre del archivo recibido. Al pasar el ratón por encima se muestra el nombre completo si es largo.</span>
+        </div>
+
+        <div class="help-row" style="margin-top:14px;">
+          <div class="help-dot" style="background:var(--p-off);"></div>
+          <span><strong style="color:var(--text);">Rojo</strong> — Sala pendiente. Estado por defecto al añadir una película.</span>
+        </div>
+        <div class="help-row">
+          <div class="help-dot" style="background:var(--p-copy);"></div>
+          <span><strong style="color:var(--text);">Amarillo</strong> — Copiando. La ingesta está en proceso.</span>
+        </div>
+        <div class="help-row">
+          <div class="help-dot" style="background:var(--p-ok);"></div>
+          <span><strong style="color:var(--text);">Verde</strong> — Listo. La película ha sido copiada correctamente en esa sala.</span>
+        </div>
+        <div class="help-row">
+          <div class="help-dot" style="background:var(--p-err);"></div>
+          <span><strong style="color:var(--text);">Azul</strong> — Error. Mantén el botón pulsado (~0,6s) para marcarlo. Aparece un campo opcional para anotar el tipo de error.</span>
+        </div>
+      </div>
+
+      <hr class="help-divider"/>
+
+      <!-- PARTE 2: AVANZADO -->
+      <div class="help-section">
+        <div class="help-section-title">Opciones avanzadas</div>
+
+        <div class="help-row">
+          <span class="help-kbd">Ctrl+S</span>
+          <span>Guarda los cambios al instante sin esperar. En Mac usa <span class="help-kbd">⌘+S</span>. Es equivalente al botón <strong style="color:var(--text);">Guardar</strong> del menú superior.</span>
+        </div>
+
+        <div class="help-row" style="margin-top:10px;">
+          <span class="help-kbd">60s</span>
+          <span><strong style="color:var(--text);">Autoguardado</strong> — Si no guardas manualmente, los cambios se sincronizan automáticamente tras 60 segundos de inactividad. El indicador superior muestra el estado en todo momento.</span>
+        </div>
+
+        <div class="help-row" style="margin-top:10px;">
+          <span style="font-size:0.82rem;margin-top:1px;">🔍</span>
+          <span><strong style="color:var(--text);">Buscador</strong> — Filtra filas en tiempo real por título de película o nombre de archivo.</span>
+        </div>
+
+        <div class="help-row" style="margin-top:10px;">
+          <span style="font-size:0.82rem;margin-top:1px;">⚙</span>
+          <span><strong style="color:var(--text);">Google Sheets</strong> — Conecta la lista con una hoja de cálculo para sincronizar datos entre ordenadores. Solo hay que configurarlo una vez.</span>
+        </div>
+      </div>
+
+      <hr class="help-divider"/>
+
+      <!-- CRÉDITOS -->
+      <div class="help-credits">
+        <strong>Lista de Ingestas — Cines Babel</strong><br>
+        Versión actual: <strong>v1.8</strong><br>
+        Diseño y desarrollo por <strong>Pablo Goitia</strong>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Conectar con Google Sheets</h2>
+    <p>Los datos se guardarán en una hoja de cálculo de Google y estarán disponibles en todos los ordenadores en tiempo real.</p>
+    <div class="modal-hint">
+      <strong>Pasos para configurar:</strong><br>
+      1. Ve a <a href="https://sheets.google.com" target="_blank">sheets.google.com</a> y crea una hoja nueva.<br>
+      2. Ve a <strong>Extensiones → Apps Script</strong>, pega el script proporcionado y despliega como web app.<br>
+      3. Copia la URL del web app y pégala abajo.
+    </div>
+    <div class="form-row">
+      <label>URL del Web App (Apps Script)</label>
+      <input type="text" id="inputWebAppUrl" placeholder="https://script.google.com/macros/s/…/exec"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeConfig()">Cancelar</button>
+      <button class="btn-primary" onclick="saveConfig()">Guardar y conectar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="popover" id="popover"></div>
+
+<footer>v1.8 · Diseño por Pablo Goitia</footer>
+
+<script>
+// ─── THEME ────────────────────────────────────
+function toggleTheme() {
+  document.body.classList.toggle('dark');
+  localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+}
+function initTheme() {
+  if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
+}
+
+// ─── SEARCH ───────────────────────────────────
+let searchQuery = "";
+
+function applySearch(value) {
+  searchQuery = value.trim().toLowerCase();
+  const countEl  = document.getElementById("searchCount");
+  const clearBtn = document.getElementById("clearSearch");
+  if (searchQuery) {
+    const matches = rows.filter(r => !r.isEmpty && matchesSearch(r)).length;
+    countEl.textContent = `${matches} resultado${matches !== 1 ? "s" : ""}`;
+    countEl.style.display = "inline";
+    clearBtn.style.display = "inline";
+  } else {
+    countEl.style.display = "none";
+    clearBtn.style.display = "none";
+  }
+  render();
+}
+
+function clearSearch() {
+  searchQuery = "";
+  document.getElementById("searchInput").value = "";
+  document.getElementById("searchCount").style.display = "none";
+  document.getElementById("clearSearch").style.display = "none";
+  render();
+}
+
+function matchesSearch(row) {
+  if (!searchQuery) return true;
+  return (row.pelicula || "").toLowerCase().includes(searchQuery) ||
+         (row.archivo  || "").toLowerCase().includes(searchQuery);
+}
+
+// ─── CONFIG ───────────────────────────────────
+let webAppUrl = localStorage.getItem("sheets_url") || "";
+
+// ─── CONSTANTS ────────────────────────────────
+const FMT_STATES = [
+  { key:"blank",  label:"—",      cls:"" },
+  { key:"fisico", label:"Físico", cls:"fisico" },
+  { key:"remoto", label:"Remoto", cls:"remoto" },
+  { key:"otro",   label:"Otro",   cls:"otro" },
+];
+
+const PROJ_CLASSES = ["p0","p1","p2","p3"];
+const PROJ_LABELS  = ["No copiado","Copiando","Listo","Error"];
+const LONG_PRESS_MS = 600;
+
+let rows      = [];
+let nextId    = 1;
+let saveTimer = null;
+
+// ─── LOCAL STORAGE ────────────────────────────
+function loadLocal() {
+  try {
+    const saved = localStorage.getItem("cine_rows");
+    if (saved) {
+      rows   = JSON.parse(saved);
+      nextId = Math.max(...rows.map(r => r.id || 0), 0) + 1;
+    }
+  } catch(e) {}
+  if (rows.length === 0) for (let i = 0; i < 6; i++) addEmptyRow();
+  render();
+}
+
+function saveLocal() { localStorage.setItem("cine_rows", JSON.stringify(rows)); }
+
+// ─── SHEETS SYNC ──────────────────────────────
+function setSyncStatus(state, text) {
+  document.getElementById("syncDot").className = "sync-dot " + state;
+  document.getElementById("syncText").textContent = text;
+  if (state === "synced" || state === "error") {
+    document.getElementById("btnSave").classList.remove("has-changes");
+  }
+}
+
+async function syncToSheets() {
+  if (!webAppUrl) return;
+  setSyncStatus("syncing","Guardando…");
+  try {
+    await fetch(webAppUrl, {
+      method:"POST", mode:"no-cors",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ action:"save", rows: rows.filter(r => !r.isEmpty) }),
+    });
+    setSyncStatus("synced","Guardado ✓");
+  } catch(e) {
+    setSyncStatus("error","Error al guardar");
+    showToast("⚠ No se pudo guardar en Sheets. Datos guardados localmente.");
+  }
+}
+
+async function loadFromSheets() {
+  if (!webAppUrl) { loadLocal(); return; }
+  setSyncStatus("syncing","Cargando…");
+  try {
+    const res  = await fetch(webAppUrl + "?action=load");
+    const data = await res.json();
+    if (data && Array.isArray(data.rows)) {
+      rows   = data.rows;
+      nextId = Math.max(...rows.map(r => r.id || 0), 0) + 1;
+      if (!rows.some(r => r.isEmpty)) addEmptyRow();
+      setSyncStatus("synced","Conectado ✓");
+      render(); saveLocal();
+    } else { throw new Error("bad response"); }
+  } catch(e) {
+    loadLocal();
+    setSyncStatus("error","Sin conexión — modo local");
+    showToast("⚠ No se pudo conectar con Sheets. Usando datos locales.");
+  }
+}
+
+function scheduleSave() {
+  saveLocal();
+  setPendingState();
+  if (!webAppUrl) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(syncToSheets, 60000);
+}
+
+function setPendingState() {
+  if (!webAppUrl) return;
+  document.getElementById("syncDot").className = "sync-dot pending";
+  document.getElementById("syncText").textContent = "Cambios sin guardar";
+  document.getElementById("btnSave").classList.add("has-changes");
+}
+
+function saveNow() {
+  clearTimeout(saveTimer);
+  if (webAppUrl) syncToSheets();
+  else showToast("💾 Guardado localmente (sin conexión a Sheets)");
+}
+
+// ─── ROW HELPERS ──────────────────────────────
+function addEmptyRow() {
+  rows.unshift({
+    id: nextId++,
+    fmt:0, otroText:"",
+    pelicula:"", archivo:"",
+    proj:[0,0,0,0,0],
+    projErr:["","","","",""],
+    date:null, isEmpty:true,
+  });
+}
+
+function getSorted() {
+  return [
+    ...rows.filter(r =>  r.isEmpty),
+    ...rows.filter(r => !r.isEmpty),
+  ];
+}
+
+// ─── RENDER ───────────────────────────────────
+function render() {
+  const tbody  = document.getElementById("tbody");
+  const sorted = getSorted();
+  const filled = sorted.filter(r => !r.isEmpty);
+  tbody.innerHTML = "";
+
+  sorted.forEach(row => {
+    if (!row.isEmpty && searchQuery && !matchesSearch(row)) return;
+
+    const tr = document.createElement("tr");
+    if (row.isEmpty) tr.classList.add("empty-row");
+
+    const rowNum  = row.isEmpty ? "" : filled.indexOf(row) + 1;
+    const fmt     = FMT_STATES[row.fmt];
+    const dateStr = row.date ? formatDate(row.date) : "";
+    const [dateDay, dateTime] = dateStr ? dateStr.split(" ") : ["",""];
+
+    tr.innerHTML = `
+      <td class="date-cell center">
+        ${dateDay  ? `<span class="date-day">${dateDay}</span>`   : ""}
+        ${dateTime ? `<span class="date-time">${dateTime}</span>` : ""}
+      </td>
+      <td class="row-num">${rowNum}</td>
+      <td class="center">
+        <div class="fmt-btn ${fmt.cls}"
+          onclick="cycleFmt(${row.id})"
+          title="Click para cambiar formato">${fmt.label}</div>
+        <input class="otro-input ${row.fmt===3?'visible':''}"
+          type="text" placeholder="Especificar…"
+          value="${escHtml(row.otroText)}"
+          oninput="updateOtroText(${row.id},this.value)"
+          onclick="event.stopPropagation()"/>
+      </td>
+      <td>
+        <input class="cell-input" type="text"
+          placeholder="${row.isEmpty ? "Nueva película…" : ""}"
+          value="${escHtml(row.pelicula)}"
+          oninput="typingPelicula(${row.id},this.value)"
+          onblur="commitPelicula(${row.id},this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"/>
+      </td>
+      <td>
+        <input class="archivo-input ${row.archivo?'has-text':''}"
+          type="text" placeholder="archivo…"
+          value="${escHtml(row.archivo)}"
+          oninput="handleArchivoChange(${row.id},this)"
+          onfocus="this.classList.add('has-text')"
+          onblur="if(!this.value)this.classList.remove('has-text')"
+          onmouseenter="mostrarPopover(this,'${escHtml(row.archivo)}')"
+          onmouseleave="ocultarPopover()"/>
+      </td>
+      ${row.proj.map((p,i) => `
+        <td class="sala">
+          <div class="sala-cell">
+            <button class="proj-btn ${PROJ_CLASSES[p]}"
+              id="pbtn-${row.id}-${i}"
+              title="S${i+1}: ${PROJ_LABELS[p]} · Mantén para marcar error"
+            ></button>
+            ${p === 3 ? `
+              <input class="error-input"
+                type="text" placeholder="Nota…"
+                value="${escHtml((row.projErr||[])[i]||'')}"
+                oninput="updateErrNote(${row.id},${i},this.value)"
+                onclick="event.stopPropagation()"/>
+            ` : ""}
+          </div>
+        </td>
+      `).join("")}
+      <td class="center">
+        ${!row.isEmpty
+          ? `<button class="btn-remove" onclick="removeRow(${row.id})" title="Eliminar">✕</button>`
+          : ""}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  sorted.forEach(row => {
+    row.proj.forEach((_, i) => {
+      const btn = document.getElementById(`pbtn-${row.id}-${i}`);
+      if (btn) attachProjListeners(btn, row.id, i);
+    });
+  });
+
+  const n = rows.filter(r => !r.isEmpty).length;
+  document.getElementById("counter").textContent =
+    n === 0 ? "0 películas" : `${n} película${n !== 1 ? "s" : ""}`;
+}
+
+// ─── LONG PRESS LOGIC ─────────────────────────
+function attachProjListeners(btn, rowId, idx) {
+  let pressTimer   = null;
+  let didLongPress = false;
+
+  function startPress(e) {
+    e.preventDefault();
+    didLongPress = false;
+    btn.classList.add("pressing");
+    pressTimer = setTimeout(() => {
+      didLongPress = true;
+      btn.classList.remove("pressing");
+      activateError(rowId, idx);
+    }, LONG_PRESS_MS);
+
+    // Listen for mouseup/touchend on document so render() doesn't lose the event
+    function onRelease(ev) {
+      document.removeEventListener("mouseup",    onRelease);
+      document.removeEventListener("touchend",   onRelease);
+      document.removeEventListener("touchcancel",onRelease);
+      clearTimeout(pressTimer);
+      if (!didLongPress) {
+        cycleProj(rowId, idx);
+      }
+      didLongPress = false;
+    }
+
+    document.addEventListener("mouseup",     onRelease);
+    document.addEventListener("touchend",    onRelease);
+    document.addEventListener("touchcancel", onRelease);
+  }
+
+  function cancelPress() {
+    clearTimeout(pressTimer);
+    btn.classList.remove("pressing");
+    didLongPress = false;
+  }
+
+  btn.addEventListener("mousedown",   startPress);
+  btn.addEventListener("mouseleave",  cancelPress);
+  btn.addEventListener("touchstart",  startPress, { passive:false });
+}
+
+// ─── SALA ACTIONS ─────────────────────────────
+function cycleProj(id, idx) {
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  if (row.proj[idx] === 3) {
+    row.proj[idx] = 0;
+    if (!row.projErr) row.projErr = ["","","","",""];
+    row.projErr[idx] = "";
+  } else {
+    row.proj[idx] = (row.proj[idx] + 1) % 3;
+  }
+  render(); scheduleSave();
+}
+
+function activateError(id, idx) {
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  row.proj[idx] = 3;
+  if (!row.projErr) row.projErr = ["","","","",""];
+  render(); scheduleSave();
+}
+
+function updateErrNote(id, idx, value) {
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  if (!row.projErr) row.projErr = ["","","","",""];
+  row.projErr[idx] = value;
+  scheduleSave();
+}
+
+// ─── PELICULA ─────────────────────────────────
+function typingPelicula(id, value) {
+  const row = rows.find(r => r.id === id);
+  if (row) row.pelicula = value;
+}
+
+function commitPelicula(id, value) {
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  row.pelicula = value;
+  const wasEmpty = row.isEmpty;
+  if (wasEmpty && value.trim()) {
+    row.isEmpty = false;
+    row.date    = new Date().toISOString();
+    if (!rows.some(r => r.isEmpty)) addEmptyRow();
+  }
+  if (!value.trim() && !wasEmpty && !row.archivo && row.fmt === 0 && row.proj.every(p => p === 0)) {
+    row.isEmpty = true; row.date = null;
+    const empties = rows.filter(r => r.isEmpty);
+    if (empties.length > 1) empties.slice(1).forEach(r => { rows = rows.filter(x => x.id !== r.id); });
+  }
+  render(); scheduleSave();
+}
+
+// ─── ARCHIVO ──────────────────────────────────
+function handleArchivoChange(id, input) {
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  row.archivo = input.value;
+  if (input.value) input.classList.add("has-text");
+  else input.classList.remove("has-text");
+  scheduleSave();
+}
+
+// ─── FORMAT ───────────────────────────────────
+function cycleFmt(id) {
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  row.fmt = (row.fmt + 1) % 4;
+  if (row.isEmpty && row.fmt !== 0) {
+    row.isEmpty = false; row.date = new Date().toISOString();
+    if (!rows.some(r => r.isEmpty)) addEmptyRow();
+  }
+  render(); scheduleSave();
+}
+
+function updateOtroText(id, value) {
+  const row = rows.find(r => r.id === id);
+  if (row) { row.otroText = value; scheduleSave(); }
+}
+
+// ─── REMOVE / ADD ─────────────────────────────
+function removeRow(id) {
+  rows = rows.filter(r => r.id !== id);
+  render(); scheduleSave();
+}
+
+function manualAddRow() { addEmptyRow(); render(); }
+
+// ─── HELPERS ──────────────────────────────────
+function formatDate(iso) {
+  const d   = new Date(iso);
+  const day = String(d.getDate()).padStart(2,"0");
+  const mon = String(d.getMonth()+1).padStart(2,"0");
+  const hr  = String(d.getHours()).padStart(2,"0");
+  const min = String(d.getMinutes()).padStart(2,"0");
+  return `${day}/${mon} ${hr}:${min}`;
+}
+
+function escHtml(s) {
+  return (s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3500);
+}
+
+// ─── HELP MODAL ───────────────────────────────
+function openHelp()  { document.getElementById("helpOverlay").classList.add("open"); }
+function closeHelp() { document.getElementById("helpOverlay").classList.remove("open"); }
+
+// ─── MODAL ────────────────────────────────────
+function openConfig() {
+  document.getElementById("inputWebAppUrl").value = webAppUrl;
+  document.getElementById("modalOverlay").classList.add("open");
+}
+function closeConfig() { document.getElementById("modalOverlay").classList.remove("open"); }
+function saveConfig() {
+  webAppUrl = document.getElementById("inputWebAppUrl").value.trim();
+  localStorage.setItem("sheets_url", webAppUrl);
+  closeConfig();
+  if (webAppUrl) { showToast("Conectando con Google Sheets…"); loadFromSheets(); }
+}
+
+// ─── POPOVER ──────────────────────────────────
+const popover = document.getElementById("popover");
+let popoverTimer = null;
+
+function mostrarPopover(el, text) {
+  if (!text) return;
+  clearTimeout(popoverTimer);
+  popoverTimer = setTimeout(() => {
+    const rect = el.getBoundingClientRect();
+    popover.textContent = text;
+    popover.classList.add("visible");
+    popover.style.top  = (rect.bottom + 6) + "px";
+    popover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 380)) + "px";
+  }, 300);
+}
+
+function ocultarPopover() {
+  clearTimeout(popoverTimer);
+  popover.classList.remove("visible");
+}
+
+// ─── KEYBOARD SHORTCUTS ───────────────────────
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+    e.preventDefault();
+    saveNow();
+  }
+});
+
+// ─── INIT ─────────────────────────────────────
+initTheme();
+if (webAppUrl) { setSyncStatus("syncing","Conectando…"); loadFromSheets(); }
+else           { setSyncStatus("local","Sin conectar");  loadLocal(); }
+
+setInterval(() => { if (webAppUrl) loadFromSheets(); }, 30000);
+</script>
+</body>
+</html>
