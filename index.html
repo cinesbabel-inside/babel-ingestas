@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ingestas — Cines Babel · v1.10.5</title>
+  <title>Ingestas — Cines Babel · v1.10.6</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎬</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
     /* ── PASSWORD SCREEN ── */
     #lockScreen {
-      position: fixed; inset: 0; z-index: 9999;
+      position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 9999;
       background: #141c2e;
-      display: flex; align-items: center; justify-content: center;
+      display: -webkit-flex; display: flex;
+      -webkit-align-items: center; align-items: center;
+      -webkit-justify-content: center; justify-content: center;
       font-family: 'Plus Jakarta Sans', sans-serif;
     }
     #lockScreen.hidden { display: none; }
@@ -546,12 +548,12 @@
 
     /* ── MODAL ── */
     .modal-overlay {
-      display: none; position: fixed; inset: 0;
+      display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0;
       background: rgba(0,0,0,0.45); z-index: 200;
-      align-items: center; justify-content: center;
-      backdrop-filter: blur(4px);
+      -webkit-align-items: center; align-items: center;
+      -webkit-justify-content: center; justify-content: center;
     }
-    .modal-overlay.open { display: flex; }
+    .modal-overlay.open { display: -webkit-flex; display: flex; }
     .modal {
       background: var(--surface); border: 1px solid var(--border);
       border-radius: 18px; padding: 28px;
@@ -616,7 +618,7 @@
       onkeydown="if(event.key==='Enter')checkPassword()"/>
     <button class="lock-btn" onclick="checkPassword()">Entrar</button>
     <div class="lock-error" id="lockError"></div>
-    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.10.5</div>
+    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.10.6</div>
   </div>
 </div>
 
@@ -801,7 +803,7 @@
       <!-- CRÉDITOS -->
       <div class="help-credits">
         <strong>Lista de Ingestas — Cines Babel</strong><br>
-        Versión actual: <strong>v1.10.5</strong><br>
+        Versión actual: <strong>v1.10.6</strong><br>
         Diseño y desarrollo por <strong>Pablo Goitia</strong>
       </div>
 
@@ -833,15 +835,21 @@
 <div class="toast" id="toast"></div>
 <div class="popover" id="popover"></div>
 
-<footer>v1.10.5 · Diseño por Pablo Goitia</footer>
+<footer>v1.10.6 · Diseño por Pablo Goitia</footer>
 
 <script>
 // ─── PASSWORD ─────────────────────────────────
 const PASS_HASH = "160707631d6ce3c72d9d7047a4174ee934c7f0a1a0c95e418740213606fda558";
 
 async function hashString(str) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+  try {
+    if (window.crypto && window.crypto.subtle) {
+      const buf = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+    }
+  } catch(e) {}
+  // Fallback for old browsers without crypto.subtle (e.g. HTTP, old Firefox)
+  return str === "ingestas" ? PASS_HASH : "invalid";
 }
 
 async function checkPassword() {
