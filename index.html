@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ingestas — Cines Babel · v1.10</title>
+  <title>Ingestas — Cines Babel · v1.10.4</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎬</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
@@ -781,7 +781,7 @@
 
         <div class="help-row" style="margin-top:10px;">
           <span class="help-kbd">60s</span>
-          <span><strong style="color:var(--text);">Autoguardado</strong> — Si no guardas manualmente, los cambios se sincronizan automáticamente tras 60 segundos de inactividad. El indicador superior muestra el estado en todo momento.</span>
+          <span><strong style="color:var(--text);">Autoguardado</strong> — Si no guardas manualmente, los cambios se sincronizan automáticamente tras 60 segundos de inactividad. Mientras haya cambios pendientes (punto naranja), la lista no se recargará desde el servidor para no perder tu trabajo. Una vez guardado, se sincroniza con otros ordenadores cada 10 segundos.</span>
         </div>
 
         <div class="help-row" style="margin-top:10px;">
@@ -800,7 +800,7 @@
       <!-- CRÉDITOS -->
       <div class="help-credits">
         <strong>Lista de Ingestas — Cines Babel</strong><br>
-        Versión actual: <strong>v1.10</strong><br>
+        Versión actual: <strong>v1.10.4</strong><br>
         Diseño y desarrollo por <strong>Pablo Goitia</strong>
       </div>
 
@@ -832,16 +832,22 @@
 <div class="toast" id="toast"></div>
 <div class="popover" id="popover"></div>
 
-<footer>v1.10 · Diseño por Pablo Goitia</footer>
+<footer>v1.10.4 · Diseño por Pablo Goitia</footer>
 
 <script>
 // ─── PASSWORD ─────────────────────────────────
-const PASS = "taquilla01";
+const PASS_HASH = "160707631d6ce3c72d9d7047a4174ee934c7f0a1a0c95e418740213606fda558";
 
-function checkPassword() {
+async function hashString(str) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+async function checkPassword() {
   const input = document.getElementById("lockInput");
   const error = document.getElementById("lockError");
-  if (input.value === PASS) {
+  const hash  = await hashString(input.value);
+  if (hash === PASS_HASH) {
     sessionStorage.setItem("auth", "1");
     document.getElementById("lockScreen").classList.add("hidden");
     input.value = "";
@@ -975,6 +981,7 @@ function setSyncStatus(state, text) {
   document.getElementById("syncText").textContent = text;
   if (state === "synced" || state === "error") {
     document.getElementById("btnSave").classList.remove("has-changes");
+    clearPendingState();
   }
 }
 
@@ -996,6 +1003,8 @@ async function syncToSheets() {
 
 async function loadFromSheets() {
   if (!webAppUrl) { loadLocal(); return; }
+  // Never overwrite unsaved changes with remote data
+  if (hasPendingChanges) return;
   setSyncStatus("syncing","Cargando…");
   try {
     const res  = await fetch(webAppUrl + "?action=load");
@@ -1016,17 +1025,23 @@ async function loadFromSheets() {
 
 function scheduleSave() {
   saveLocal();
-  setPendingState();
   if (!webAppUrl) return;
+  setPendingState();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(syncToSheets, 60000);
 }
 
+let hasPendingChanges = false;
+
 function setPendingState() {
-  if (!webAppUrl) return;
+  hasPendingChanges = true;
   document.getElementById("syncDot").className = "sync-dot pending";
   document.getElementById("syncText").textContent = "Cambios sin guardar";
   document.getElementById("btnSave").classList.add("has-changes");
+}
+
+function clearPendingState() {
+  hasPendingChanges = false;
 }
 
 function saveNow() {
@@ -1056,109 +1071,163 @@ function getSorted() {
 }
 
 // ─── RENDER ───────────────────────────────────
+// ─── ROW HTML BUILDER ─────────────────────────
+function buildRowHTML(row, rowNum) {
+  const fmt     = FMT_STATES[row.fmt];
+  const fmt2    = FMT2_STATES[row.fmt2 || 0];
+  const dateStr = row.date ? formatDate(row.date) : "";
+  const [dateDay, dateTime] = dateStr ? dateStr.split(" ") : ["",""];
+
+  return `
+    <td class="date-cell center">
+      ${dateDay  ? `<span class="date-day">${dateDay}</span>`   : ""}
+      ${dateTime ? `<span class="date-time">${dateTime}</span>` : ""}
+    </td>
+    <td class="row-num">${rowNum}</td>
+    <td class="center">
+      <div class="fmt-btn ${fmt.cls}"
+        onclick="cycleFmt(${row.id})"
+        title="Click para cambiar soporte">${fmt.label}</div>
+      <input class="otro-input ${row.fmt===3?'visible':''}"
+        type="text" placeholder="Especificar…"
+        value="${escHtml(row.otroText)}"
+        oninput="updateOtroText(${row.id},this.value)"
+        onclick="event.stopPropagation()"/>
+    </td>
+    <td>
+      <input class="cell-input" type="text"
+        placeholder="${row.isEmpty ? "Nueva película…" : ""}"
+        value="${escHtml(row.pelicula)}"
+        oninput="typingPelicula(${row.id},this.value)"
+        onblur="commitPelicula(${row.id},this.value)"
+        onkeydown="if(event.key==='Enter')this.blur()"/>
+    </td>
+    <td class="center">
+      <div class="fmt2-btn ${fmt2.cls}"
+        onclick="cycleFmt2(${row.id})"
+        title="Click para cambiar formato">${fmt2.label}</div>
+      <input class="fmt2-otro-input ${(row.fmt2||0)===3?'visible':''}"
+        type="text" placeholder="Especificar…"
+        value="${escHtml(row.fmt2OtroText||'')}"
+        oninput="updateFmt2OtroText(${row.id},this.value)"
+        onclick="event.stopPropagation()"/>
+    </td>
+    <td>
+      <input class="notas-input ${row.notas?'has-text':''}"
+        type="text" placeholder="notas…"
+        value="${escHtml(row.notas||'')}"
+        oninput="handleNotasChange(${row.id},this)"
+        onfocus="this.classList.add('has-text')"
+        onblur="if(!this.value)this.classList.remove('has-text')"
+        onmouseenter="mostrarPopover(this,'${escHtml(row.notas||'')}')"
+        onmouseleave="ocultarPopover()"/>
+    </td>
+    <td>
+      <input class="archivo-input ${row.archivo?'has-text':''}"
+        type="text" placeholder="archivo…"
+        value="${escHtml(row.archivo)}"
+        oninput="handleArchivoChange(${row.id},this)"
+        onfocus="this.classList.add('has-text')"
+        onblur="if(!this.value)this.classList.remove('has-text')"
+        onmouseenter="mostrarPopover(this,'${escHtml(row.archivo)}')"
+        onmouseleave="ocultarPopover()"/>
+    </td>
+    ${row.proj.map((p,i) => `
+      <td class="sala">
+        <div class="sala-cell">
+          <button class="proj-btn ${PROJ_CLASSES[p]}"
+            id="pbtn-${row.id}-${i}"
+            title="S${i+1}: ${PROJ_LABELS[p]} · Mantén para marcar error"
+          ></button>
+          ${p === 3 ? `
+            <input class="error-input"
+              type="text" placeholder="Nota…"
+              value="${escHtml((row.projErr||[])[i]||'')}"
+              oninput="updateErrNote(${row.id},${i},this.value)"
+              onclick="event.stopPropagation()"/>
+          ` : ""}
+        </div>
+      </td>
+    `).join("")}
+    <td class="center">
+      ${!row.isEmpty
+        ? `<button class="btn-remove" onclick="removeRow(${row.id})" title="Eliminar">✕</button>`
+        : ""}
+    </td>
+  `;
+}
+
+function attachSalaListeners(row) {
+  row.proj.forEach((_, i) => {
+    const btn = document.getElementById(`pbtn-${row.id}-${i}`);
+    if (btn) attachProjListeners(btn, row.id, i);
+  });
+}
+
 function render() {
   const tbody  = document.getElementById("tbody");
   const sorted = getSorted();
   const filled = sorted.filter(r => !r.isEmpty);
-  tbody.innerHTML = "";
 
+  // Build the set of row ids that should be visible
+  const visibleIds = new Set();
   sorted.forEach(row => {
     if (!row.isEmpty && searchQuery && !matchesSearch(row)) return;
-
-    const tr = document.createElement("tr");
-    if (row.isEmpty) tr.classList.add("empty-row");
-
-    const rowNum  = row.isEmpty ? "" : filled.indexOf(row) + 1;
-    const fmt     = FMT_STATES[row.fmt];
-    const fmt2    = FMT2_STATES[row.fmt2 || 0];
-    const dateStr = row.date ? formatDate(row.date) : "";
-    const [dateDay, dateTime] = dateStr ? dateStr.split(" ") : ["",""];
-
-    tr.innerHTML = `
-      <td class="date-cell center">
-        ${dateDay  ? `<span class="date-day">${dateDay}</span>`   : ""}
-        ${dateTime ? `<span class="date-time">${dateTime}</span>` : ""}
-      </td>
-      <td class="row-num">${rowNum}</td>
-      <td class="center">
-        <div class="fmt-btn ${fmt.cls}"
-          onclick="cycleFmt(${row.id})"
-          title="Click para cambiar soporte">${fmt.label}</div>
-        <input class="otro-input ${row.fmt===3?'visible':''}"
-          type="text" placeholder="Especificar…"
-          value="${escHtml(row.otroText)}"
-          oninput="updateOtroText(${row.id},this.value)"
-          onclick="event.stopPropagation()"/>
-      </td>
-      <td>
-        <input class="cell-input" type="text"
-          placeholder="${row.isEmpty ? "Nueva película…" : ""}"
-          value="${escHtml(row.pelicula)}"
-          oninput="typingPelicula(${row.id},this.value)"
-          onblur="commitPelicula(${row.id},this.value)"
-          onkeydown="if(event.key==='Enter')this.blur()"/>
-      </td>
-      <td class="center">
-        <div class="fmt2-btn ${fmt2.cls}"
-          onclick="cycleFmt2(${row.id})"
-          title="Click para cambiar formato">${fmt2.label}</div>
-        <input class="fmt2-otro-input ${(row.fmt2||0)===3?'visible':''}"
-          type="text" placeholder="Especificar…"
-          value="${escHtml(row.fmt2OtroText||'')}"
-          oninput="updateFmt2OtroText(${row.id},this.value)"
-          onclick="event.stopPropagation()"/>
-      </td>
-      <td>
-        <input class="notas-input ${row.notas?'has-text':''}"
-          type="text" placeholder="notas…"
-          value="${escHtml(row.notas||'')}"
-          oninput="handleNotasChange(${row.id},this)"
-          onfocus="this.classList.add('has-text')"
-          onblur="if(!this.value)this.classList.remove('has-text')"
-          onmouseenter="mostrarPopover(this,'${escHtml(row.notas||'')}')"
-          onmouseleave="ocultarPopover()"/>
-      </td>
-      <td>
-        <input class="archivo-input ${row.archivo?'has-text':''}"
-          type="text" placeholder="archivo…"
-          value="${escHtml(row.archivo)}"
-          oninput="handleArchivoChange(${row.id},this)"
-          onfocus="this.classList.add('has-text')"
-          onblur="if(!this.value)this.classList.remove('has-text')"
-          onmouseenter="mostrarPopover(this,'${escHtml(row.archivo)}')"
-          onmouseleave="ocultarPopover()"/>
-      </td>
-      ${row.proj.map((p,i) => `
-        <td class="sala">
-          <div class="sala-cell">
-            <button class="proj-btn ${PROJ_CLASSES[p]}"
-              id="pbtn-${row.id}-${i}"
-              title="S${i+1}: ${PROJ_LABELS[p]} · Mantén para marcar error"
-            ></button>
-            ${p === 3 ? `
-              <input class="error-input"
-                type="text" placeholder="Nota…"
-                value="${escHtml((row.projErr||[])[i]||'')}"
-                oninput="updateErrNote(${row.id},${i},this.value)"
-                onclick="event.stopPropagation()"/>
-            ` : ""}
-          </div>
-        </td>
-      `).join("")}
-      <td class="center">
-        ${!row.isEmpty
-          ? `<button class="btn-remove" onclick="removeRow(${row.id})" title="Eliminar">✕</button>`
-          : ""}
-      </td>
-    `;
-    tbody.appendChild(tr);
+    visibleIds.add(row.id);
   });
 
-  sorted.forEach(row => {
-    row.proj.forEach((_, i) => {
-      const btn = document.getElementById(`pbtn-${row.id}-${i}`);
-      if (btn) attachProjListeners(btn, row.id, i);
-    });
+  // Remove rows that should no longer be visible
+  const existingTrs = Array.from(tbody.querySelectorAll("tr[data-id]"));
+  existingTrs.forEach(tr => {
+    const id = parseInt(tr.dataset.id);
+    if (!visibleIds.has(id)) tr.remove();
+  });
+
+  // Build ordered list of visible rows
+  const visibleRows = sorted.filter(r => visibleIds.has(r.id));
+
+  visibleRows.forEach((row, idx) => {
+    const rowNum  = row.isEmpty ? "" : filled.indexOf(row) + 1;
+    const newHTML = buildRowHTML(row, rowNum);
+    const existing = tbody.querySelector(`tr[data-id="${row.id}"]`);
+
+    if (!existing) {
+      // Create new row
+      const tr = document.createElement("tr");
+      tr.dataset.id = row.id;
+      if (row.isEmpty) tr.classList.add("empty-row");
+      tr.innerHTML = newHTML;
+      // Insert at correct position
+      const refTr = tbody.querySelectorAll("tr[data-id]")[idx];
+      if (refTr) tbody.insertBefore(tr, refTr);
+      else tbody.appendChild(tr);
+      attachSalaListeners(row);
+    } else {
+      // Check if row needs updating (skip active inputs to avoid cursor jump)
+      const focused = document.activeElement;
+      const isActiveInRow = existing.contains(focused);
+      if (!isActiveInRow) {
+        const prevHTML = existing.innerHTML.replace(/\s+/g, " ").trim();
+        const nextHTML = newHTML.replace(/\s+/g, " ").trim();
+        if (prevHTML !== nextHTML) {
+          existing.className = row.isEmpty ? "empty-row" : "";
+          existing.innerHTML = newHTML;
+          attachSalaListeners(row);
+        }
+      } else {
+        // Only update non-input parts safely (class, row num, buttons)
+        existing.className = row.isEmpty ? "empty-row" : "";
+        // Re-attach sala listeners in case proj state changed
+        attachSalaListeners(row);
+      }
+      // Ensure correct DOM order
+      const currentTrs = Array.from(tbody.querySelectorAll("tr[data-id]"));
+      if (currentTrs.indexOf(existing) !== idx) {
+        const refTr = tbody.querySelectorAll("tr[data-id]")[idx];
+        if (refTr && refTr !== existing) tbody.insertBefore(existing, refTr);
+        else if (!refTr) tbody.appendChild(existing);
+      }
+    }
   });
 
   const n = rows.filter(r => !r.isEmpty).length;
@@ -1397,7 +1466,7 @@ initTheme();
 if (webAppUrl) { setSyncStatus("syncing","Conectando…"); loadFromSheets(); }
 else           { setSyncStatus("local","Sin conectar");  loadLocal(); }
 
-setInterval(() => { if (webAppUrl) loadFromSheets(); }, 30000);
+setInterval(() => { if (webAppUrl) loadFromSheets(); }, 10000);
 </script>
 </body>
 </html>
