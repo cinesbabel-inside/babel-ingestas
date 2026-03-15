@@ -3,10 +3,85 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ingestas — Cines Babel · v1.8</title>
+  <title>Ingestas — Cines Babel · v1.10</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎬</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
+    /* ── PASSWORD SCREEN ── */
+    #lockScreen {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #141c2e;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    #lockScreen.hidden { display: none; }
+    .lock-box {
+      background: #1e2636;
+      border: 1px solid #252d3d;
+      border-radius: 18px;
+      padding: 40px 36px;
+      width: 340px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+    .lock-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, #3f7ff0, #6fa8ff);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin: 0 auto 20px;
+      box-shadow: 0 4px 16px rgba(63,127,240,0.4);
+    }
+    .lock-title {
+      font-size: 1rem; font-weight: 800;
+      color: #e8edf8; margin-bottom: 4px;
+    }
+    .lock-subtitle {
+      font-size: 0.72rem; color: #6b7a99;
+      margin-bottom: 24px; line-height: 1.5;
+    }
+    .lock-input {
+      width: 100%; padding: 10px 14px;
+      border: 1.5px solid #252d3d; border-radius: 10px;
+      background: #141c2e; color: #e8edf8;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.88rem; font-weight: 500;
+      outline: none; text-align: center;
+      letter-spacing: 0.08em;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      margin-bottom: 12px;
+    }
+    .lock-input:focus {
+      border-color: #3f7ff0;
+      box-shadow: 0 0 0 3px rgba(63,127,240,0.15);
+    }
+    .lock-input.error {
+      border-color: #f87171;
+      box-shadow: 0 0 0 3px rgba(248,113,113,0.15);
+      animation: shake 0.3s ease;
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+    .lock-btn {
+      width: 100%; padding: 10px;
+      background: #3f7ff0; color: #fff;
+      border: none; border-radius: 10px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.82rem; font-weight: 700;
+      cursor: pointer; transition: opacity 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 14px rgba(63,127,240,0.35);
+    }
+    .lock-btn:hover { opacity: 0.9; box-shadow: 0 6px 18px rgba(63,127,240,0.45); }
+    .lock-error {
+      font-size: 0.68rem; color: #f87171;
+      margin-top: 10px; min-height: 18px;
+    }
+
+    /* ════════════════════════════════════════ */
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -28,6 +103,10 @@
       --s-fisico:   #d0e4ff;
       --s-remoto:   #e0d0ff;
       --s-otro:     #ffecd0;
+      --f-blank:    #e4eaf4;
+      --f-flat:     #c8f0d0;
+      --f-scope:    #ffd0d0;
+      --f-otro:     #fff3c0;
       --p-off:      #ff8a80;
       --p-copy:     #ffd740;
       --p-ok:       #69f0ae;
@@ -53,6 +132,10 @@
       --s-fisico:   #152240;
       --s-remoto:   #201540;
       --s-otro:     #402810;
+      --f-blank:    #252d3d;
+      --f-flat:     #103020;
+      --f-scope:    #401010;
+      --f-otro:     #403010;
       --p-off:      #c62828;
       --p-copy:     #f9a825;
       --p-ok:       #2e7d32;
@@ -303,7 +386,46 @@
     .archivo-input:focus { background: var(--focus-bg); }
     .archivo-input::placeholder { color: var(--text3); font-size: 0.68rem; }
 
-    /* ── SALA CELL ── */
+    /* ── FORMATO BUTTON (new) ── */
+    .fmt2-btn {
+      width: 56px; height: 22px; border-radius: 6px; border: none; cursor: pointer;
+      font-size: 0.54rem; font-weight: 700; font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto; transition: transform 0.12s, box-shadow 0.12s; user-select: none;
+      color: var(--text2); background: var(--f-blank);
+    }
+    .fmt2-btn:hover  { transform: scale(1.06); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .fmt2-btn:active { transform: scale(0.94); }
+    .fmt2-btn.flat   { background: var(--f-flat);  color: #1a6030; }
+    .fmt2-btn.scope  { background: var(--f-scope); color: #801a1a; }
+    .fmt2-btn.fmtotro { background: var(--f-otro); color: #806010; }
+    body.dark .fmt2-btn.flat   { color: #6fd89a; }
+    body.dark .fmt2-btn.scope  { color: #f08080; }
+    body.dark .fmt2-btn.fmtotro { color: #f0d070; }
+
+    .fmt2-otro-input {
+      background: transparent; border: none;
+      border-bottom: 1px dashed var(--border);
+      color: var(--text2); font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.62rem; width: 56px; padding: 2px;
+      outline: none; margin-top: 3px; display: none;
+    }
+    .fmt2-otro-input.visible { display: block; }
+    .fmt2-otro-input::placeholder { color: var(--text3); }
+
+    /* ── NOTAS INPUT ── */
+    .notas-input {
+      background: transparent; border: none; color: var(--text3);
+      font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.68rem;
+      width: 100%; padding: 3px 6px; outline: none; border-radius: 6px;
+      transition: background 0.12s, color 0.15s, font-size 0.15s; user-select: text;
+    }
+    .notas-input:focus, .notas-input.has-text { color: var(--text2); font-size: 0.78rem; font-weight: 500; }
+    .notas-input:focus { background: var(--focus-bg); }
+    .notas-input::placeholder { color: var(--text3); font-size: 0.68rem; }
+
+    /* ── FORMATO LEGEND ── */
     .sala-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 
     /* ── SALA BUTTON ── */
@@ -484,6 +606,19 @@
 </head>
 <body>
 
+<div id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-icon">🎬</div>
+    <div class="lock-title">Cines Babel · Ingestas</div>
+    <div class="lock-subtitle">Herramienta de uso interno.<br>Introduce la contraseña para continuar.</div>
+    <input class="lock-input" id="lockInput" type="password"
+      placeholder="Contraseña"
+      onkeydown="if(event.key==='Enter')checkPassword()"/>
+    <button class="lock-btn" onclick="checkPassword()">Entrar</button>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
+
 <div class="header">
   <div class="header-left">
     <div class="header-icon">🎬</div>
@@ -511,11 +646,19 @@
 <main>
   <div class="legends">
     <div class="legend-group">
-      <span class="legend-label">Formato</span>
+      <span class="legend-label">Soporte</span>
       <div class="legend-item"><div class="legend-chip" style="background:var(--s-blank);border:1px solid rgba(0,0,0,0.08)"></div>—</div>
       <div class="legend-item"><div class="legend-chip" style="background:var(--s-fisico)"></div>Físico</div>
       <div class="legend-item"><div class="legend-chip" style="background:var(--s-remoto)"></div>Remoto</div>
       <div class="legend-item"><div class="legend-chip" style="background:var(--s-otro)"></div>Otro</div>
+    </div>
+    <div class="legend-sep"></div>
+    <div class="legend-group">
+      <span class="legend-label">Formato</span>
+      <div class="legend-item"><div class="legend-chip" style="background:var(--f-blank);border:1px solid rgba(0,0,0,0.08)"></div>—</div>
+      <div class="legend-item"><div class="legend-chip" style="background:var(--f-flat)"></div>Flat</div>
+      <div class="legend-item"><div class="legend-chip" style="background:var(--f-scope)"></div>Scope</div>
+      <div class="legend-item"><div class="legend-chip" style="background:var(--f-otro)"></div>Otro</div>
     </div>
     <div class="legend-sep"></div>
     <div class="legend-group">
@@ -531,7 +674,7 @@
     <div class="search-inner">
       <span class="search-icon">🔍</span>
       <input class="search-input" id="searchInput" type="text"
-        placeholder="Buscar por título o archivo…"
+        placeholder="Buscar por título, soporte, formato, notas, archivo o sala…"
         oninput="applySearch(this.value)"/>
     </div>
     <span class="search-count" id="searchCount" style="display:none;"></span>
@@ -545,9 +688,11 @@
         <tr>
           <th style="width:38px" class="center"></th>
           <th style="width:18px"></th>
-          <th class="center" style="width:66px">Formato</th>
+          <th class="center" style="width:66px">Soporte</th>
           <th>Película</th>
-          <th style="width:160px">Archivo</th>
+          <th class="center" style="width:66px">Formato</th>
+          <th style="width:130px">Notas</th>
+          <th style="width:140px">Archivo</th>
           <th class="center" style="width:48px;padding:11px 0;">S1</th>
           <th class="center" style="width:48px;padding:11px 0;">S2</th>
           <th class="center" style="width:48px;padding:11px 0;">S3</th>
@@ -582,12 +727,22 @@
 
         <div class="help-row">
           <span class="help-badge" style="background:var(--s-blank);color:var(--text2);">—</span>
-          <span><strong style="color:var(--text);">Formato</strong> — Indica cómo se ha recibido la película. Haz clic para cambiar entre: sin especificar, <span style="color:#1a5080;font-weight:600;">Físico</span>, <span style="color:#3a1a80;font-weight:600;">Remoto</span> u <span style="color:#804a10;font-weight:600;">Otro</span>. Si eliges "Otro" aparece un campo para especificar.</span>
+          <span><strong style="color:var(--text);">Soporte</strong> — Indica cómo se ha recibido la película. Haz clic para cambiar entre: sin especificar, <span style="color:#1a5080;font-weight:600;">Físico</span>, <span style="color:#3a1a80;font-weight:600;">Remoto</span> u <span style="color:#804a10;font-weight:600;">Otro</span>. Si eliges "Otro" aparece un campo para especificar.</span>
         </div>
 
         <div class="help-row" style="margin-top:10px;">
           <span style="font-size:0.82rem;margin-top:1px;">🎬</span>
           <span><strong style="color:var(--text);">Película</strong> — Escribe el título y pulsa Enter o haz clic fuera para confirmar. La fila se activa automáticamente al confirmar.</span>
+        </div>
+
+        <div class="help-row" style="margin-top:10px;">
+          <span class="help-badge" style="background:var(--f-blank);color:var(--text2);">—</span>
+          <span><strong style="color:var(--text);">Formato</strong> — Indica el formato de imagen de la película. Haz clic para cambiar entre: sin especificar, <span style="color:#1a6030;font-weight:600;">Flat</span> o <span style="color:#801a1a;font-weight:600;">Scope</span>. Son los dos formatos estándar en los que suelen enviarse las películas. Si eliges "Otro" aparece un campo para especificar.</span>
+        </div>
+
+        <div class="help-row" style="margin-top:10px;">
+          <span style="font-size:0.82rem;margin-top:1px;">📝</span>
+          <span><strong style="color:var(--text);">Notas</strong> — Campo libre para cualquier anotación relevante sobre la película. Al pasar el ratón por encima se muestra el texto completo si es largo.</span>
         </div>
 
         <div class="help-row" style="margin-top:10px;">
@@ -631,7 +786,7 @@
 
         <div class="help-row" style="margin-top:10px;">
           <span style="font-size:0.82rem;margin-top:1px;">🔍</span>
-          <span><strong style="color:var(--text);">Buscador</strong> — Filtra filas en tiempo real por título de película o nombre de archivo.</span>
+          <span><strong style="color:var(--text);">Buscador</strong> — Filtra filas en tiempo real por título, soporte, formato, notas, archivo o estado de sala. Por ejemplo, escribe "scope" para ver todas las películas en ese formato, o "listo" para ver las completamente copiadas.</span>
         </div>
 
         <div class="help-row" style="margin-top:10px;">
@@ -645,7 +800,7 @@
       <!-- CRÉDITOS -->
       <div class="help-credits">
         <strong>Lista de Ingestas — Cines Babel</strong><br>
-        Versión actual: <strong>v1.8</strong><br>
+        Versión actual: <strong>v1.10</strong><br>
         Diseño y desarrollo por <strong>Pablo Goitia</strong>
       </div>
 
@@ -677,9 +832,37 @@
 <div class="toast" id="toast"></div>
 <div class="popover" id="popover"></div>
 
-<footer>v1.8 · Diseño por Pablo Goitia</footer>
+<footer>v1.10 · Diseño por Pablo Goitia</footer>
 
 <script>
+// ─── PASSWORD ─────────────────────────────────
+const PASS = "taquilla01";
+
+function checkPassword() {
+  const input = document.getElementById("lockInput");
+  const error = document.getElementById("lockError");
+  if (input.value === PASS) {
+    sessionStorage.setItem("auth", "1");
+    document.getElementById("lockScreen").classList.add("hidden");
+    input.value = "";
+    error.textContent = "";
+  } else {
+    input.classList.add("error");
+    error.textContent = "Contraseña incorrecta.";
+    setTimeout(() => input.classList.remove("error"), 400);
+    input.value = "";
+    input.focus();
+  }
+}
+
+function initAuth() {
+  if (sessionStorage.getItem("auth") === "1") {
+    document.getElementById("lockScreen").classList.add("hidden");
+  } else {
+    setTimeout(() => document.getElementById("lockInput").focus(), 100);
+  }
+}
+
 // ─── THEME ────────────────────────────────────
 function toggleTheme() {
   document.body.classList.toggle('dark');
@@ -718,8 +901,31 @@ function clearSearch() {
 
 function matchesSearch(row) {
   if (!searchQuery) return true;
-  return (row.pelicula || "").toLowerCase().includes(searchQuery) ||
-         (row.archivo  || "").toLowerCase().includes(searchQuery);
+  const q = searchQuery;
+
+  // text fields
+  if ((row.pelicula   || "").toLowerCase().includes(q)) return true;
+  if ((row.archivo    || "").toLowerCase().includes(q)) return true;
+  if ((row.notas      || "").toLowerCase().includes(q)) return true;
+  if ((row.otroText   || "").toLowerCase().includes(q)) return true;
+  if ((row.fmt2OtroText || "").toLowerCase().includes(q)) return true;
+
+  // soporte label
+  const soporteLabel = FMT_STATES[row.fmt || 0].key;
+  if (soporteLabel.toLowerCase().includes(q)) return true;
+
+  // formato label
+  const formatoLabel = FMT2_STATES[row.fmt2 || 0].label;
+  if (formatoLabel.toLowerCase().includes(q)) return true;
+
+  // sala states
+  const salaLabels = (row.proj || []).map(p => PROJ_LABELS[p].toLowerCase());
+  if (salaLabels.some(l => l.includes(q))) return true;
+
+  // sala error notes
+  if ((row.projErr || []).some(e => (e || "").toLowerCase().includes(q))) return true;
+
+  return false;
 }
 
 // ─── CONFIG ───────────────────────────────────
@@ -731,6 +937,13 @@ const FMT_STATES = [
   { key:"fisico", label:"Físico", cls:"fisico" },
   { key:"remoto", label:"Remoto", cls:"remoto" },
   { key:"otro",   label:"Otro",   cls:"otro" },
+];
+
+const FMT2_STATES = [
+  { key:"blank",   label:"—",     cls:"" },
+  { key:"flat",    label:"Flat",  cls:"flat" },
+  { key:"scope",   label:"Scope", cls:"scope" },
+  { key:"fmtotro", label:"Otro",  cls:"fmtotro" },
 ];
 
 const PROJ_CLASSES = ["p0","p1","p2","p3"];
@@ -827,7 +1040,8 @@ function addEmptyRow() {
   rows.unshift({
     id: nextId++,
     fmt:0, otroText:"",
-    pelicula:"", archivo:"",
+    fmt2:0, fmt2OtroText:"",
+    pelicula:"", archivo:"", notas:"",
     proj:[0,0,0,0,0],
     projErr:["","","","",""],
     date:null, isEmpty:true,
@@ -856,6 +1070,7 @@ function render() {
 
     const rowNum  = row.isEmpty ? "" : filled.indexOf(row) + 1;
     const fmt     = FMT_STATES[row.fmt];
+    const fmt2    = FMT2_STATES[row.fmt2 || 0];
     const dateStr = row.date ? formatDate(row.date) : "";
     const [dateDay, dateTime] = dateStr ? dateStr.split(" ") : ["",""];
 
@@ -868,7 +1083,7 @@ function render() {
       <td class="center">
         <div class="fmt-btn ${fmt.cls}"
           onclick="cycleFmt(${row.id})"
-          title="Click para cambiar formato">${fmt.label}</div>
+          title="Click para cambiar soporte">${fmt.label}</div>
         <input class="otro-input ${row.fmt===3?'visible':''}"
           type="text" placeholder="Especificar…"
           value="${escHtml(row.otroText)}"
@@ -882,6 +1097,26 @@ function render() {
           oninput="typingPelicula(${row.id},this.value)"
           onblur="commitPelicula(${row.id},this.value)"
           onkeydown="if(event.key==='Enter')this.blur()"/>
+      </td>
+      <td class="center">
+        <div class="fmt2-btn ${fmt2.cls}"
+          onclick="cycleFmt2(${row.id})"
+          title="Click para cambiar formato">${fmt2.label}</div>
+        <input class="fmt2-otro-input ${(row.fmt2||0)===3?'visible':''}"
+          type="text" placeholder="Especificar…"
+          value="${escHtml(row.fmt2OtroText||'')}"
+          oninput="updateFmt2OtroText(${row.id},this.value)"
+          onclick="event.stopPropagation()"/>
+      </td>
+      <td>
+        <input class="notas-input ${row.notas?'has-text':''}"
+          type="text" placeholder="notas…"
+          value="${escHtml(row.notas||'')}"
+          oninput="handleNotasChange(${row.id},this)"
+          onfocus="this.classList.add('has-text')"
+          onblur="if(!this.value)this.classList.remove('has-text')"
+          onmouseenter="mostrarPopover(this,'${escHtml(row.notas||'')}')"
+          onmouseleave="ocultarPopover()"/>
       </td>
       <td>
         <input class="archivo-input ${row.archivo?'has-text':''}"
@@ -1028,6 +1263,33 @@ function commitPelicula(id, value) {
   render(); scheduleSave();
 }
 
+// ─── FORMATO (new) ────────────────────────────
+function cycleFmt2(id) {
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  row.fmt2 = ((row.fmt2 || 0) + 1) % 4;
+  if (row.isEmpty && row.fmt2 !== 0) {
+    row.isEmpty = false; row.date = new Date().toISOString();
+    if (!rows.some(r => r.isEmpty)) addEmptyRow();
+  }
+  render(); scheduleSave();
+}
+
+function updateFmt2OtroText(id, value) {
+  const row = rows.find(r => r.id === id);
+  if (row) { row.fmt2OtroText = value; scheduleSave(); }
+}
+
+// ─── NOTAS ────────────────────────────────────
+function handleNotasChange(id, input) {
+  const row = rows.find(r => r.id === id);
+  if (!row) return;
+  row.notas = input.value;
+  if (input.value) input.classList.add("has-text");
+  else input.classList.remove("has-text");
+  scheduleSave();
+}
+
 // ─── ARCHIVO ──────────────────────────────────
 function handleArchivoChange(id, input) {
   const row = rows.find(r => r.id === id);
@@ -1130,6 +1392,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ─── INIT ─────────────────────────────────────
+initAuth();
 initTheme();
 if (webAppUrl) { setSyncStatus("syncing","Conectando…"); loadFromSheets(); }
 else           { setSyncStatus("local","Sin conectar");  loadLocal(); }
