@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ingestas — Cines Babel · v1.11</title>
+  <title>Ingestas — Cines Babel · v1.11.3</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎬</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
@@ -638,7 +638,7 @@
       onkeydown="if(event.key==='Enter')checkPassword()"/>
     <button class="lock-btn" onclick="checkPassword()">Entrar</button>
     <div class="lock-error" id="lockError"></div>
-    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.11</div>
+    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.11.3</div>
   </div>
 </div>
 
@@ -836,7 +836,7 @@
       <!-- CRÉDITOS -->
       <div class="help-credits">
         <strong>Lista de Ingestas — Cines Babel</strong><br>
-        Versión actual: <strong>v1.11</strong><br>
+        Versión actual: <strong>v1.11.3</strong><br>
         Diseño y desarrollo por <strong>Pablo Goitia</strong>
       </div>
 
@@ -868,7 +868,7 @@
 <div class="toast" id="toast"></div>
 <div class="popover" id="popover"></div>
 
-<footer>v1.11 · Diseño por Pablo Goitia</footer>
+<footer>v1.11.3 · Diseño por Pablo Goitia</footer>
 
 <script>
 // ─── PASSWORD ─────────────────────────────────
@@ -1002,12 +1002,22 @@ let rows      = [];
 let nextId    = 1;
 let saveTimer = null;
 
+// ─── ROW MIGRATION ────────────────────────────
+function migrateRow(row) {
+  if (row.enc    === undefined) row.enc = 0;
+  if (row.notas  === undefined) row.notas = "";
+  if (row.fmt2   === undefined) row.fmt2 = 0;
+  if (row.fmt2OtroText === undefined) row.fmt2OtroText = "";
+  if (row.projErr === undefined) row.projErr = ["","","","",""];
+  return row;
+}
+
 // ─── LOCAL STORAGE ────────────────────────────
 function loadLocal() {
   try {
     const saved = localStorage.getItem("cine_rows");
     if (saved) {
-      rows   = JSON.parse(saved);
+      rows   = JSON.parse(saved).map(migrateRow);
       nextId = Math.max(...rows.map(r => r.id || 0), 0) + 1;
     }
   } catch(e) {}
@@ -1052,7 +1062,7 @@ async function loadFromSheets() {
     const res  = await fetch(webAppUrl + "?action=load");
     const data = await res.json();
     if (data && Array.isArray(data.rows)) {
-      rows   = data.rows;
+      rows   = data.rows.map(migrateRow);
       nextId = Math.max(...rows.map(r => r.id || 0), 0) + 1;
       if (!rows.some(r => r.isEmpty)) addEmptyRow();
       setSyncStatus("synced","Conectado ✓");
@@ -1107,176 +1117,123 @@ function addEmptyRow() {
 }
 
 function getSorted() {
-  return [
-    ...rows.filter(r =>  r.isEmpty),
-    ...rows.filter(r => !r.isEmpty),
-  ];
+  const empty  = rows.filter(r => r.isEmpty);
+  const filled = rows.filter(r => !r.isEmpty)
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  return [...empty, ...filled];
 }
 
 // ─── RENDER ───────────────────────────────────
 // ─── ROW HTML BUILDER ─────────────────────────
-function buildRowHTML(row, rowNum) {
-  const fmt     = FMT_STATES[row.fmt];
-  const fmt2    = FMT2_STATES[row.fmt2 || 0];
-  const enc     = ENC_STATES[row.enc || 0];
-  const dateStr = row.date ? formatDate(row.date) : "";
-  const [dateDay, dateTime] = dateStr ? dateStr.split(" ") : ["",""];
-
-  return `
-    <td class="date-cell center">
-      ${dateDay  ? `<span class="date-day">${dateDay}</span>`   : ""}
-      ${dateTime ? `<span class="date-time">${dateTime}</span>` : ""}
-    </td>
-    <td class="row-num">${rowNum}</td>
-    <td class="center">
-      <div class="fmt-btn ${fmt.cls}"
-        onclick="cycleFmt(${row.id})"
-        title="Click para cambiar soporte">${fmt.label}</div>
-      <input class="otro-input ${row.fmt===3?'visible':''}"
-        type="text" placeholder="Especificar…"
-        value="${escHtml(row.otroText)}"
-        oninput="updateOtroText(${row.id},this.value)"
-        onclick="event.stopPropagation()"/>
-    </td>
-    <td>
-      <input class="cell-input" type="text"
-        placeholder="${row.isEmpty ? "Nueva película…" : ""}"
-        value="${escHtml(row.pelicula)}"
-        oninput="typingPelicula(${row.id},this.value)"
-        onblur="commitPelicula(${row.id},this.value)"
-        onkeydown="if(event.key==='Enter')this.blur()"/>
-    </td>
-    <td class="center">
-      <div class="enc-btn ${enc.cls}"
-        onclick="cycleEnc(${row.id})"
-        title="Click para cambiar encriptación">${enc.label}</div>
-    </td>
-    <td class="center">
-      <div class="fmt2-btn ${fmt2.cls}"
-        onclick="cycleFmt2(${row.id})"
-        title="Click para cambiar formato">${fmt2.label}</div>
-      <input class="fmt2-otro-input ${(row.fmt2||0)===3?'visible':''}"
-        type="text" placeholder="Especificar…"
-        value="${escHtml(row.fmt2OtroText||'')}"
-        oninput="updateFmt2OtroText(${row.id},this.value)"
-        onclick="event.stopPropagation()"/>
-    </td>
-    <td>
-      <input class="notas-input ${row.notas?'has-text':''}"
-        type="text" placeholder="notas…"
-        value="${escHtml(row.notas||'')}"
-        oninput="handleNotasChange(${row.id},this)"
-        onfocus="this.classList.add('has-text')"
-        onblur="if(!this.value)this.classList.remove('has-text')"
-        onmouseenter="mostrarPopover(this,'${escHtml(row.notas||'')}')"
-        onmouseleave="ocultarPopover()"/>
-    </td>
-    <td>
-      <input class="archivo-input ${row.archivo?'has-text':''}"
-        type="text" placeholder="archivo…"
-        value="${escHtml(row.archivo)}"
-        oninput="handleArchivoChange(${row.id},this)"
-        onfocus="this.classList.add('has-text')"
-        onblur="if(!this.value)this.classList.remove('has-text')"
-        onmouseenter="mostrarPopover(this,'${escHtml(row.archivo)}')"
-        onmouseleave="ocultarPopover()"/>
-    </td>
-    ${row.proj.map((p,i) => `
-      <td class="sala">
-        <div class="sala-cell">
-          <button class="proj-btn ${PROJ_CLASSES[p]}"
-            id="pbtn-${row.id}-${i}"
-            title="S${i+1}: ${PROJ_LABELS[p]} · Mantén para marcar error"
-          ></button>
-          ${p === 3 ? `
-            <input class="error-input"
-              type="text" placeholder="Nota…"
-              value="${escHtml((row.projErr||[])[i]||'')}"
-              oninput="updateErrNote(${row.id},${i},this.value)"
-              onclick="event.stopPropagation()"/>
-          ` : ""}
-        </div>
-      </td>
-    `).join("")}
-    <td class="center">
-      ${!row.isEmpty
-        ? `<button class="btn-remove" onclick="removeRow(${row.id})" title="Eliminar">✕</button>`
-        : ""}
-    </td>
-  `;
-}
-
-function attachSalaListeners(row) {
-  row.proj.forEach((_, i) => {
-    const btn = document.getElementById(`pbtn-${row.id}-${i}`);
-    if (btn) attachProjListeners(btn, row.id, i);
-  });
-}
-
 function render() {
   const tbody  = document.getElementById("tbody");
   const sorted = getSorted();
   const filled = sorted.filter(r => !r.isEmpty);
+  tbody.innerHTML = "";
 
-  // Build the set of row ids that should be visible
-  const visibleIds = new Set();
   sorted.forEach(row => {
     if (!row.isEmpty && searchQuery && !matchesSearch(row)) return;
-    visibleIds.add(row.id);
-  });
 
-  // Remove rows that should no longer be visible
-  const existingTrs = Array.from(tbody.querySelectorAll("tr[data-id]"));
-  existingTrs.forEach(tr => {
-    const id = parseInt(tr.dataset.id);
-    if (!visibleIds.has(id)) tr.remove();
-  });
+    const tr = document.createElement("tr");
+    if (row.isEmpty) tr.classList.add("empty-row");
 
-  // Build ordered list of visible rows
-  const visibleRows = sorted.filter(r => visibleIds.has(r.id));
-
-  visibleRows.forEach((row, idx) => {
     const rowNum  = row.isEmpty ? "" : filled.indexOf(row) + 1;
-    const newHTML = buildRowHTML(row, rowNum);
-    const existing = tbody.querySelector(`tr[data-id="${row.id}"]`);
+    const fmt     = FMT_STATES[row.fmt];
+    const fmt2    = FMT2_STATES[row.fmt2 || 0];
+    const enc     = ENC_STATES[row.enc || 0];
+    const dateStr = row.date ? formatDate(row.date) : "";
+    const [dateDay, dateTime] = dateStr ? dateStr.split(" ") : ["",""];
 
-    if (!existing) {
-      // Create new row
-      const tr = document.createElement("tr");
-      tr.dataset.id = row.id;
-      if (row.isEmpty) tr.classList.add("empty-row");
-      tr.innerHTML = newHTML;
-      // Insert at correct position
-      const refTr = tbody.querySelectorAll("tr[data-id]")[idx];
-      if (refTr) tbody.insertBefore(tr, refTr);
-      else tbody.appendChild(tr);
-      attachSalaListeners(row);
-    } else {
-      // Check if row needs updating (skip active inputs to avoid cursor jump)
-      const focused = document.activeElement;
-      const isActiveInRow = existing.contains(focused);
-      if (!isActiveInRow) {
-        const prevHTML = existing.innerHTML.replace(/\s+/g, " ").trim();
-        const nextHTML = newHTML.replace(/\s+/g, " ").trim();
-        if (prevHTML !== nextHTML) {
-          existing.className = row.isEmpty ? "empty-row" : "";
-          existing.innerHTML = newHTML;
-          attachSalaListeners(row);
-        }
-      } else {
-        // Only update non-input parts safely (class, row num, buttons)
-        existing.className = row.isEmpty ? "empty-row" : "";
-        // Re-attach sala listeners in case proj state changed
-        attachSalaListeners(row);
-      }
-      // Ensure correct DOM order
-      const currentTrs = Array.from(tbody.querySelectorAll("tr[data-id]"));
-      if (currentTrs.indexOf(existing) !== idx) {
-        const refTr = tbody.querySelectorAll("tr[data-id]")[idx];
-        if (refTr && refTr !== existing) tbody.insertBefore(existing, refTr);
-        else if (!refTr) tbody.appendChild(existing);
-      }
-    }
+    tr.innerHTML = `
+      <td class="date-cell center">
+        ${dateDay  ? `<span class="date-day">${dateDay}</span>`   : ""}
+        ${dateTime ? `<span class="date-time">${dateTime}</span>` : ""}
+      </td>
+      <td class="row-num">${rowNum}</td>
+      <td class="center">
+        <div class="fmt-btn ${fmt.cls}"
+          onclick="cycleFmt(${row.id})"
+          title="Click para cambiar soporte">${fmt.label}</div>
+        <input class="otro-input ${row.fmt===3?'visible':''}"
+          type="text" placeholder="Especificar…"
+          value="${escHtml(row.otroText)}"
+          oninput="updateOtroText(${row.id},this.value)"
+          onclick="event.stopPropagation()"/>
+      </td>
+      <td>
+        <input class="cell-input" type="text"
+          placeholder="${row.isEmpty ? "Nueva película…" : ""}"
+          value="${escHtml(row.pelicula)}"
+          oninput="typingPelicula(${row.id},this.value)"
+          onblur="commitPelicula(${row.id},this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()"/>
+      </td>
+      <td class="center">
+        <div class="enc-btn ${enc.cls}"
+          onclick="cycleEnc(${row.id})"
+          title="Click para cambiar encriptación">${enc.label}</div>
+      </td>
+      <td class="center">
+        <div class="fmt2-btn ${fmt2.cls}"
+          onclick="cycleFmt2(${row.id})"
+          title="Click para cambiar formato">${fmt2.label}</div>
+        <input class="fmt2-otro-input ${(row.fmt2||0)===3?'visible':''}"
+          type="text" placeholder="Especificar…"
+          value="${escHtml(row.fmt2OtroText||'')}"
+          oninput="updateFmt2OtroText(${row.id},this.value)"
+          onclick="event.stopPropagation()"/>
+      </td>
+      <td>
+        <input class="notas-input ${row.notas?'has-text':''}"
+          type="text" placeholder="notas…"
+          value="${escHtml(row.notas||'')}"
+          oninput="handleNotasChange(${row.id},this)"
+          onfocus="this.classList.add('has-text')"
+          onblur="if(!this.value)this.classList.remove('has-text')"
+          onmouseenter="mostrarPopover(this,'${escHtml(row.notas||'')}')"
+          onmouseleave="ocultarPopover()"/>
+      </td>
+      <td>
+        <input class="archivo-input ${row.archivo?'has-text':''}"
+          type="text" placeholder="archivo…"
+          value="${escHtml(row.archivo)}"
+          oninput="handleArchivoChange(${row.id},this)"
+          onfocus="this.classList.add('has-text')"
+          onblur="if(!this.value)this.classList.remove('has-text')"
+          onmouseenter="mostrarPopover(this,'${escHtml(row.archivo)}')"
+          onmouseleave="ocultarPopover()"/>
+      </td>
+      ${row.proj.map((p,i) => `
+        <td class="sala">
+          <div class="sala-cell">
+            <button class="proj-btn ${PROJ_CLASSES[p]}"
+              id="pbtn-${row.id}-${i}"
+              title="S${i+1}: ${PROJ_LABELS[p]} · Mantén para marcar error"
+            ></button>
+            ${p === 3 ? `
+              <input class="error-input"
+                type="text" placeholder="Nota…"
+                value="${escHtml((row.projErr||[])[i]||'')}"
+                oninput="updateErrNote(${row.id},${i},this.value)"
+                onclick="event.stopPropagation()"/>
+            ` : ""}
+          </div>
+        </td>
+      `).join("")}
+      <td class="center">
+        ${!row.isEmpty
+          ? `<button class="btn-remove" onclick="removeRow(${row.id})" title="Eliminar">✕</button>`
+          : ""}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  sorted.forEach(row => {
+    row.proj.forEach((_, i) => {
+      const btn = document.getElementById(`pbtn-${row.id}-${i}`);
+      if (btn) attachProjListeners(btn, row.id, i);
+    });
   });
 
   const n = rows.filter(r => !r.isEmpty).length;
