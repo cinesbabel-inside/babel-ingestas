@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ingestas — Cines Babel · v1.11.3</title>
+  <title>Ingestas — Cines Babel · v1.11.4</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎬</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
@@ -638,7 +638,7 @@
       onkeydown="if(event.key==='Enter')checkPassword()"/>
     <button class="lock-btn" onclick="checkPassword()">Entrar</button>
     <div class="lock-error" id="lockError"></div>
-    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.11.3</div>
+    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.11.4</div>
   </div>
 </div>
 
@@ -836,7 +836,7 @@
       <!-- CRÉDITOS -->
       <div class="help-credits">
         <strong>Lista de Ingestas — Cines Babel</strong><br>
-        Versión actual: <strong>v1.11.3</strong><br>
+        Versión actual: <strong>v1.11.4</strong><br>
         Diseño y desarrollo por <strong>Pablo Goitia</strong>
       </div>
 
@@ -868,7 +868,7 @@
 <div class="toast" id="toast"></div>
 <div class="popover" id="popover"></div>
 
-<footer>v1.11.3 · Diseño por Pablo Goitia</footer>
+<footer>v1.11.4 · Diseño por Pablo Goitia</footer>
 
 <script>
 // ─── PASSWORD ─────────────────────────────────
@@ -1002,6 +1002,21 @@ let rows      = [];
 let nextId    = 1;
 let saveTimer = null;
 
+function deduplicateRows(rowList) {
+  const seen = {};
+  rowList.forEach(row => {
+    const id = row.id;
+    if (!seen[id]) {
+      seen[id] = row;
+    } else {
+      const scoreNew = row.proj.filter(p => p === 2).length + (row.archivo ? 1 : 0) + (row.enc > 0 ? 1 : 0) + (row.notas ? 1 : 0);
+      const scoreOld = seen[id].proj.filter(p => p === 2).length + (seen[id].archivo ? 1 : 0) + (seen[id].enc > 0 ? 1 : 0) + (seen[id].notas ? 1 : 0);
+      if (scoreNew > scoreOld) seen[id] = row;
+    }
+  });
+  return Object.values(seen).sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
 // ─── ROW MIGRATION ────────────────────────────
 function migrateRow(row) {
   if (row.enc    === undefined) row.enc = 0;
@@ -1017,11 +1032,13 @@ function loadLocal() {
   try {
     const saved = localStorage.getItem("cine_rows");
     if (saved) {
-      rows   = JSON.parse(saved).map(migrateRow);
+      const parsed = JSON.parse(saved).map(migrateRow);
+      rows   = deduplicateRows(parsed.filter(r => !r.isEmpty));
       nextId = Math.max(...rows.map(r => r.id || 0), 0) + 1;
     }
   } catch(e) {}
   if (rows.length === 0) for (let i = 0; i < 6; i++) addEmptyRow();
+  else addEmptyRow();
   render();
 }
 
@@ -1040,12 +1057,31 @@ function setSyncStatus(state, text) {
 async function syncToSheets() {
   if (!webAppUrl) return;
   setSyncStatus("syncing","Guardando…");
+
+  // Deduplicate rows in memory before sending
+  const seen = {};
+  rows.filter(r => !r.isEmpty).forEach(row => {
+    const id = row.id;
+    if (!seen[id]) {
+      seen[id] = row;
+    } else {
+      const scoreNew = row.proj.filter(p => p === 2).length + (row.archivo ? 1 : 0) + (row.enc > 0 ? 1 : 0) + (row.notas ? 1 : 0);
+      const scoreOld = seen[id].proj.filter(p => p === 2).length + (seen[id].archivo ? 1 : 0) + (seen[id].enc > 0 ? 1 : 0) + (seen[id].notas ? 1 : 0);
+      if (scoreNew > scoreOld) seen[id] = row;
+    }
+  });
+  const cleanRows = Object.values(seen).sort((a, b) => new Date(b.date) - new Date(a.date));
+
   try {
     await fetch(webAppUrl, {
       method:"POST", mode:"no-cors",
       headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ action:"save", rows: rows.filter(r => !r.isEmpty) }),
+      body: JSON.stringify({ action:"save", rows: cleanRows }),
     });
+    // Update local rows with clean version
+    const emptyRows = rows.filter(r => r.isEmpty);
+    rows = [...emptyRows, ...cleanRows];
+    saveLocal();
     setSyncStatus("synced","Guardado ✓");
   } catch(e) {
     setSyncStatus("error","Error al guardar");
@@ -1062,7 +1098,8 @@ async function loadFromSheets() {
     const res  = await fetch(webAppUrl + "?action=load");
     const data = await res.json();
     if (data && Array.isArray(data.rows)) {
-      rows   = data.rows.map(migrateRow);
+      const migrated = data.rows.map(migrateRow);
+      rows   = deduplicateRows(migrated.filter(r => !r.isEmpty));
       nextId = Math.max(...rows.map(r => r.id || 0), 0) + 1;
       if (!rows.some(r => r.isEmpty)) addEmptyRow();
       setSyncStatus("synced","Conectado ✓");
