@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ingestas — Cines Babel · v1.12.2</title>
+  <title>Ingestas — Cines Babel · v1.12.3</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><text y='32' font-size='32'>🎬</text></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
   <style>
@@ -362,6 +362,17 @@
 
     .filter-sep { width: 1px; height: 14px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
 
+    .filter-chip.fc-s1 { background: rgba(63,127,240,0.15); color: #1a5080; border-color: rgba(63,127,240,0.3); }
+    .filter-chip.fc-s2 { background: rgba(63,127,240,0.15); color: #1a5080; border-color: rgba(63,127,240,0.3); }
+    .filter-chip.fc-s3 { background: rgba(63,127,240,0.15); color: #1a5080; border-color: rgba(63,127,240,0.3); }
+    .filter-chip.fc-s4 { background: rgba(63,127,240,0.15); color: #1a5080; border-color: rgba(63,127,240,0.3); }
+    .filter-chip.fc-s5 { background: rgba(63,127,240,0.15); color: #1a5080; border-color: rgba(63,127,240,0.3); }
+    body.dark .filter-chip.fc-s1,
+    body.dark .filter-chip.fc-s2,
+    body.dark .filter-chip.fc-s3,
+    body.dark .filter-chip.fc-s4,
+    body.dark .filter-chip.fc-s5 { color: #82b1ff; border-color: rgba(91,150,247,0.3); background: rgba(91,150,247,0.12); }
+
     /* ── TABLE ── */
     .table-wrap {
       background: var(--surface); border: 1px solid var(--border);
@@ -691,7 +702,7 @@
       onkeydown="if(event.key==='Enter')checkPassword()"/>
     <button class="lock-btn" onclick="checkPassword()">Entrar</button>
     <div class="lock-error" id="lockError"></div>
-    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.12.2</div>
+    <div style="margin-top:20px;font-size:0.6rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em;">v1.12.3</div>
   </div>
 </div>
 
@@ -780,6 +791,12 @@
     <div class="filter-chip fc-copiando"  onclick="toggleFilter('estado','copiando',this)">Copiando</div>
     <div class="filter-chip fc-listo"     onclick="toggleFilter('estado','listo',this)">Listo</div>
     <div class="filter-chip fc-error"     onclick="toggleFilter('estado','error',this)">Error</div>
+    <div class="filter-sep"></div>
+    <div class="filter-chip fc-s1" onclick="toggleFilter('sala','0',this)">S1</div>
+    <div class="filter-chip fc-s2" onclick="toggleFilter('sala','1',this)">S2</div>
+    <div class="filter-chip fc-s3" onclick="toggleFilter('sala','2',this)">S3</div>
+    <div class="filter-chip fc-s4" onclick="toggleFilter('sala','3',this)">S4</div>
+    <div class="filter-chip fc-s5" onclick="toggleFilter('sala','4',this)">S5</div>
   </div>
 
   <div class="table-wrap">
@@ -906,7 +923,7 @@
       <!-- CRÉDITOS -->
       <div class="help-credits">
         <strong>Lista de Ingestas — Cines Babel</strong><br>
-        Versión actual: <strong>v1.12.2</strong><br>
+        Versión actual: <strong>v1.12.3</strong><br>
         Diseño y desarrollo por <strong>Pablo Goitia</strong>
       </div>
 
@@ -938,7 +955,7 @@
 <div class="toast" id="toast"></div>
 <div class="popover" id="popover"></div>
 
-<footer>v1.12.2 · Diseño por Pablo Goitia</footer>
+<footer>v1.12.3 · Diseño por Pablo Goitia</footer>
 
 <script>
 // ─── PASSWORD ─────────────────────────────────
@@ -985,7 +1002,7 @@ function initTheme() {
 }
 
 // ─── FILTERS ──────────────────────────────────
-const activeFilters = { soporte: null, enc: null, fmt: null, estado: null };
+const activeFilters = { soporte: null, enc: null, fmt: null, estado: null, sala: null };
 
 function toggleFilter(group, value, el) {
   if (activeFilters[group] === value) {
@@ -1024,6 +1041,12 @@ function rowMatchesFilters(row) {
     const stateMap = { nocopiado: 0, copiando: 1, listo: 2, error: 3 };
     const target = stateMap[activeFilters.estado];
     if (!(row.proj || []).some(p => p === target)) return false;
+  }
+  // Sala específica — muestra si esa sala está en copiando (1) o listo (2), excluye rojo
+  if (activeFilters.sala !== null) {
+    const idx = parseInt(activeFilters.sala);
+    const estado = (row.proj || [])[idx];
+    if (estado !== 1 && estado !== 2) return false;
   }
   return true;
 }
@@ -1481,7 +1504,10 @@ function updateErrNote(id, idx, value) {
 // ─── PELICULA ─────────────────────────────────
 function typingPelicula(id, value) {
   const row = rows.find(r => r.id === id);
-  if (row) row.pelicula = value;
+  if (!row) return;
+  row.pelicula = value;
+  // Mark pending immediately so auto-reload doesn't overwrite while typing
+  if (webAppUrl) setPendingState();
 }
 
 function commitPelicula(id, value) {
@@ -1648,7 +1674,7 @@ initTheme();
 if (webAppUrl) { setSyncStatus("syncing","Conectando…"); loadFromSheets(); }
 else           { setSyncStatus("local","Sin conectar");  loadLocal(); }
 
-setInterval(() => { if (webAppUrl) loadFromSheets(); }, 10000);
+setInterval(() => { if (webAppUrl) loadFromSheets(); }, 30000);
 </script>
 </body>
 </html>
